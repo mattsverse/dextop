@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "dextop",
+  "version": "0.1.0",
+  "identifier": "com.mattsverse.dextop",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "dextop",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:dextop.db"]
+    },
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://github.com/mattsverse/dextop/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU0NDY0MEE4MTk3ODFCOUYKUldTZkczZ1pxRUJHVk9lSUtodHVnaVREVllYNzIxYmJvUzdUVkhQVFIxTFBsSWovTjg5aUt2QjEK"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Matteo Gassend",
+    "category": "DeveloperTool",
+    "shortDescription": "Dex UI - Visual Dex",
+    "copyright": "Copyright © 2025 Matteo Gassend. All rights reserved."
+  }
+}

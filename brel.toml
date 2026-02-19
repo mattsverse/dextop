@@ -1,0 +1,10 @@
+[release_pr.format_overrides]
+"src-tauri/Cargo.lock" = "toml"
+
+[release_pr.version_updates]
+"src-tauri/Cargo.toml" = ["package.version"]
+"src-tauri/Cargo.lock" = ["package[name=dextop].version"]
+"package.json" = ["version"]
+
+[release_pr.tagging]
+enabled = true

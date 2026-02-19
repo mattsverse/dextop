@@ -1,0 +1,12 @@
+pre-commit:
+  jobs:
+    - name: "[js] lint"
+      stage_fixed: true
+      glob:
+        - "**/src/*.{ts,tsx,json,js,css}"
+      run: bun lint:fix {staged_files}
+    - name: "[js] fmt"
+      stage_fixed: true
+      glob:
+        - "**/src/*.{ts,tsx,json,js,css}"
+      run: bun fmt {staged_files}
