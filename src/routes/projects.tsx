@@ -50,7 +50,7 @@ function RouteComponent() {
   });
   return (
     <>
-      <SidebarProvider class="h-full" defaultOpen>
+      <SidebarProvider class="h-full min-h-0" defaultOpen>
         <ProjectSidebar />
         <SidebarInset class="min-w-0 flex-1 overflow-y-auto border border-slate-200/80 bg-white/60 backdrop-blur dark:border-white/10 dark:bg-slate-950/40">
           <header class="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-slate-200/80 bg-white/75 px-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
