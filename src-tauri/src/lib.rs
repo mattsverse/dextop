@@ -391,7 +391,7 @@ LIMIT 1;
     let should_delete = app
         .dialog()
         .message(format!(
-            "Remove \"{project_name}\" from Dex UI?\n\nThis does not delete files on disk."
+            "Remove \"{project_name}\" from dextop?\n\nThis does not delete files on disk."
         ))
         .title("Delete Project")
         .kind(MessageDialogKind::Warning)
@@ -449,7 +449,7 @@ ORDER BY id ASC;
     let should_delete = app
         .dialog()
         .message(format!(
-            "Remove all {count} stored project(s) from Dex UI?\n\nThis does not delete files on disk.",
+            "Remove all {count} stored project(s) from dextop?\n\nThis does not delete files on disk.",
             count = project_ids.len()
         ))
         .title("Remove All Projects")

@@ -1,4 +1,4 @@
-# Dex-UI
+# Dextop
 
 A desktop application to read and display [dex](https://dex.rip/) tasks for a project.
 

@@ -79,7 +79,7 @@ export function TopNavbar() {
             <FolderKanban class="size-4" />
           </div>
           <span class="truncate text-sm font-semibold uppercase tracking-[0.12em] text-slate-700 dark:text-slate-100">
-            Dex UI
+            dextop
           </span>
         </div>
 

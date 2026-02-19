@@ -4,7 +4,7 @@ This file defines the default execution rules for work in this repository.
 
 ## Context
 
-Dex-ui is a desktop application for dex tasks visualization. It will allow users to open projects, look for dex tasks in it and display it in a kanban board. Users will then be able to add/edit/delete/archive tasks
+dextop is a desktop application for dex tasks visualization. It will allow users to open projects, look for dex tasks in it and display it in a kanban board. Users will then be able to add/edit/delete/archive tasks
 
 ## Core Stack Rules
 

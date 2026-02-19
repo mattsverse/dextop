@@ -84,7 +84,7 @@ function SettingsRouteComponent() {
                   Stored Projects
                 </h2>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                  Remove every saved project reference from Dex UI.
+                  Remove every saved project reference from dextop.
                 </p>
               </div>
             </div>
