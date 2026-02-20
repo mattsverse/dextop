@@ -1,3 +1,9 @@
+## [0.0.3] - 2026-02-20
+
+### 🐛 Bug Fixes
+
+- Pubkey
+- Release workflow
 ## [0.0.2] - 2026-02-20
 
 ### 🐛 Bug Fixes
