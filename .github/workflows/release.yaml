@@ -28,16 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch version from release tag
-        shell: bash
-        run: |
-          TAG="${{ github.event.release.tag_name || inputs.version }}"
-          VERSION="${TAG#v}"
-          echo "Patching version to $VERSION"
-          node -e "const p=require('./package.json'); p.version='$VERSION'; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2)+'\n')"
-          node -e "const c=require('./src-tauri/tauri.conf.json'); c.version='$VERSION'; require('fs').writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(c,null,2)+'\n')"
-          sed -i.bak "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml && rm -f src-tauri/Cargo.toml.bak
-
       - name: install dependencies (ubuntu only)
         if: startsWith(matrix.platform, 'ubuntu-')
         run: |
