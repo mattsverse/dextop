@@ -31,7 +31,7 @@
       "endpoints": [
         "https://github.com/mattsverse/dextop/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU0NDY0MEE4MTk3ODFCOUYKUldTZkczZ1pxRUJHVk9lSUtodHVnaVREVllYNzIxYmJvUzdUVkhQVFIxTFBsSWovTjg5aUt2QjEK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5RjIyMzg2QzdDQ0JFQzQKUldURXZzekhoaVB5V1E5WnpGUU1wc3R4OVVkR0JsLzBRK1NOWHFEeXNnMGZNTTg1bW41czdIVG4K"
     }
   },
   "bundle": {
