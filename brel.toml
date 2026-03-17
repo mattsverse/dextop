@@ -6,6 +6,7 @@ default_branch = "main"
 "src-tauri/Cargo.toml" = ["package.version"]
 "src-tauri/Cargo.lock" = ["package[name=dextop].version"]
 "package.json" = ["version"]
+"src-tauri/tauri.conf.json" = ["version"]
 
 [release_pr.tagging]
 enabled = true
