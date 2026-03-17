@@ -18,10 +18,25 @@ export type DexTask = {
   blocks: string[];
 };
 
+export type CreateProjectTaskInput = {
+  name: string;
+  description?: string | null;
+  priority?: number | null;
+  parentId?: string | null;
+  blockedBy?: string[];
+};
+
 type TasksUpdatedEventPayload = {
   projectPath: string;
   tasks: DexTask[];
 };
+
+export async function createProjectTask(
+  projectPath: string,
+  input: CreateProjectTaskInput,
+): Promise<void> {
+  await invoke("create_project_task", { projectPath, input });
+}
 
 export async function watchProjectTasks(projectPath: string): Promise<DexTask[]> {
   return invoke<DexTask[]>("watch_project_tasks", { projectPath });

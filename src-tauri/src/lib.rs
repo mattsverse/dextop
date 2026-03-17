@@ -3,7 +3,9 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{Pool, Sqlite};
 use std::collections::HashMap;
 use std::fs::{create_dir_all, read_to_string};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -51,6 +53,20 @@ struct DexTaskRecord {
 struct TasksUpdatedEvent {
     project_path: String,
     tasks: Vec<DexTaskRecord>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateProjectTaskInput {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    priority: Option<i64>,
+    #[serde(default)]
+    parent_id: Option<String>,
+    #[serde(default)]
+    blocked_by: Vec<String>,
 }
 
 struct ActiveTaskWatcher {
@@ -237,6 +253,82 @@ fn create_project_tasks_watcher(
     })?;
 
     Ok(watcher)
+}
+
+fn trim_optional_value(value: Option<String>) -> Option<String> {
+    value.and_then(|raw| {
+        let trimmed = raw.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
+fn build_create_task_args(input: CreateProjectTaskInput) -> Result<Vec<String>, String> {
+    let trimmed_name = input.name.trim();
+    if trimmed_name.is_empty() {
+        return Err("task name cannot be empty".to_string());
+    }
+
+    let mut args = vec!["create".to_string(), trimmed_name.to_string()];
+
+    if let Some(description) = trim_optional_value(input.description) {
+        args.push("--description".to_string());
+        args.push(description);
+    }
+
+    if let Some(priority) = input.priority {
+        args.push("--priority".to_string());
+        args.push(priority.to_string());
+    }
+
+    if let Some(parent_id) = trim_optional_value(input.parent_id) {
+        args.push("--parent".to_string());
+        args.push(parent_id);
+    }
+
+    let blocked_by = input
+        .blocked_by
+        .into_iter()
+        .map(|task_id| task_id.trim().to_string())
+        .filter(|task_id| !task_id.is_empty())
+        .collect::<Vec<_>>();
+
+    if !blocked_by.is_empty() {
+        args.push("--blocked-by".to_string());
+        args.push(blocked_by.join(","));
+    }
+
+    Ok(args)
+}
+
+fn run_create_task_command(project_dir: &Path, args: &[String]) -> Result<Output, String> {
+    match Command::new("dex")
+        .current_dir(project_dir)
+        .args(args)
+        .output()
+    {
+        Ok(output) => Ok(output),
+        Err(error) if error.kind() == ErrorKind::NotFound => Command::new("bunx")
+            .current_dir(project_dir)
+            .arg("@zeeg/dex")
+            .args(args)
+            .output()
+            .map_err(|fallback_error| format!("failed to start dex create command: {fallback_error}")),
+        Err(error) => Err(format!("failed to start dex create command: {error}")),
+    }
+}
+
+fn format_command_output(output: &Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if !stderr.is_empty() {
+        return stderr;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !stdout.is_empty() {
+        return stdout;
+    }
+
+    "dex create failed without returning any output".to_string()
 }
 
 async fn connect_db(app: &tauri::AppHandle) -> Result<Pool<Sqlite>, String> {
@@ -575,6 +667,39 @@ fn watch_project_tasks(
 }
 
 #[tauri::command]
+fn create_project_task(
+    app: tauri::AppHandle,
+    project_path: String,
+    input: CreateProjectTaskInput,
+) -> Result<(), String> {
+    let normalized_project_path = project_path.trim();
+    if normalized_project_path.is_empty() {
+        return Err("project path cannot be empty".to_string());
+    }
+
+    let project_dir = Path::new(normalized_project_path);
+    if !project_dir.exists() {
+        return Err("project path does not exist".to_string());
+    }
+    if !project_dir.is_dir() {
+        return Err("project path must point to a directory".to_string());
+    }
+
+    let args = build_create_task_args(input)?;
+    let output = run_create_task_command(project_dir, &args)?;
+
+    if !output.status.success() {
+        return Err(format_command_output(&output));
+    }
+
+    let tasks_file = tasks_file_for_project(normalized_project_path);
+    let tasks = load_project_tasks_from_file(&tasks_file)?;
+    emit_tasks_updated(&app, normalized_project_path, tasks)?;
+
+    Ok(())
+}
+
+#[tauri::command]
 fn unwatch_project_tasks(
     watcher_state: tauri::State<'_, TaskWatcherState>,
     project_path: String,
@@ -640,6 +765,7 @@ CREATE TABLE IF NOT EXISTS projects (
             open_project_window,
             clear_projects,
             watch_project_tasks,
+            create_project_task,
             unwatch_project_tasks,
             clear_project_tasks_watch
         ])

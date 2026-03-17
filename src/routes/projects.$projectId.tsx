@@ -5,10 +5,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useProjects } from "@/contexts/projects-context";
 import { useTasks } from "@/contexts/tasks-context";
+import { createProjectTask, DexTask } from "@/lib/tasks-service";
 import { createFileRoute, Navigate } from "@tanstack/solid-router";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   KanbanSquare,
@@ -16,9 +20,9 @@ import {
   LoaderCircle,
   OctagonAlert,
   PartyPopper,
+  Plus,
 } from "lucide-solid";
 import { createMemo, createRenderEffect, createSignal, For, Show } from "solid-js";
-import { DexTask } from "@/lib/tasks-service";
 
 export const Route = createFileRoute("/projects/$projectId")({
   component: RouteComponent,
@@ -37,6 +41,22 @@ const KANBAN_COLUMNS: Array<{
   { key: "blocked", label: "Blocked", compactLabel: "Block", icon: OctagonAlert },
   { key: "done", label: "Done", compactLabel: "Done", icon: PartyPopper },
 ];
+
+type CreateTaskFormState = {
+  name: string;
+  description: string;
+  priority: string;
+  parentId: string;
+  blockedBy: string[];
+};
+
+const INITIAL_CREATE_TASK_FORM: CreateTaskFormState = {
+  name: "",
+  description: "",
+  priority: "1",
+  parentId: "",
+  blockedBy: [],
+};
 
 function getColumnKey(task: {
   completed: boolean;
@@ -94,10 +114,29 @@ function toTimestamp(value: string | null): number {
   return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  return "Something went wrong while creating the task.";
+}
+
 function RouteComponent() {
   const params = Route.useParams()();
   const { isProjectsInitialized, projects, selectProject } = useProjects();
   const { projectTasks } = useTasks();
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = createSignal(false);
+  const [createTaskForm, setCreateTaskForm] = createSignal<CreateTaskFormState>({
+    ...INITIAL_CREATE_TASK_FORM,
+  });
+  const [createTaskError, setCreateTaskError] = createSignal<string | null>(null);
+  const [createTaskNameError, setCreateTaskNameError] = createSignal<string | null>(null);
+  const [isCreateTaskPending, setIsCreateTaskPending] = createSignal(false);
   const [isDetailsOpen, setIsDetailsOpen] = createSignal(false);
   const [selectedTaskId, setSelectedTaskId] = createSignal<string | null>(null);
   const [collapsedColumns, setCollapsedColumns] = createSignal<Record<KanbanColumnKey, boolean>>({
@@ -217,6 +256,91 @@ function RouteComponent() {
     return subtasksByParentId().get(task.id) ?? [];
   });
 
+  const taskRelationOptions = createMemo(() => sortedProjectTasks());
+  const hasTaskRelationOptions = createMemo(() => taskRelationOptions().length > 0);
+
+  const resetCreateTaskForm = () => {
+    setCreateTaskForm({ ...INITIAL_CREATE_TASK_FORM });
+    setCreateTaskError(null);
+    setCreateTaskNameError(null);
+    setIsCreateTaskPending(false);
+  };
+
+  const openCreateTaskDialog = () => {
+    resetCreateTaskForm();
+    setIsCreateTaskOpen(true);
+  };
+
+  const handleCreateTaskOpenChange = (open: boolean) => {
+    setIsCreateTaskOpen(open);
+    if (!open) {
+      resetCreateTaskForm();
+    }
+  };
+
+  const updateCreateTaskForm = <K extends keyof CreateTaskFormState>(
+    field: K,
+    value: CreateTaskFormState[K],
+  ) => {
+    setCreateTaskForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const toggleBlockedByTask = (taskId: string, checked: boolean) => {
+    setCreateTaskForm((current) => {
+      const nextBlockedBy = checked
+        ? [...new Set([...current.blockedBy, taskId])]
+        : current.blockedBy.filter((currentTaskId) => currentTaskId !== taskId);
+
+      return {
+        ...current,
+        blockedBy: nextBlockedBy,
+      };
+    });
+  };
+
+  const handleCreateTaskSubmit = async () => {
+    if (isCreateTaskPending()) {
+      return;
+    }
+
+    const project = routeProject();
+    if (!project) {
+      setCreateTaskError("Select a project before creating a task.");
+      return;
+    }
+
+    const form = createTaskForm();
+    const trimmedName = form.name.trim();
+    if (!trimmedName) {
+      setCreateTaskNameError("Task name is required.");
+      return;
+    }
+
+    setCreateTaskNameError(null);
+    setCreateTaskError(null);
+    setIsCreateTaskPending(true);
+
+    try {
+      const parsedPriority = Number.parseInt(form.priority.trim(), 10);
+      await createProjectTask(project.path, {
+        name: trimmedName,
+        description: form.description.trim() || null,
+        priority: Number.isNaN(parsedPriority) ? 1 : parsedPriority,
+        parentId: form.parentId || null,
+        blockedBy: form.blockedBy,
+      });
+      setIsCreateTaskOpen(false);
+      resetCreateTaskForm();
+    } catch (error) {
+      setCreateTaskError(getErrorMessage(error));
+    } finally {
+      setIsCreateTaskPending(false);
+    }
+  };
+
   const openTaskDetails = (taskId: string) => {
     setSelectedTaskId(taskId);
     setIsDetailsOpen(true);
@@ -278,9 +402,24 @@ function RouteComponent() {
           }
         >
           <div class="flex h-full flex-col gap-4">
-            <div class="inline-flex w-fit items-center gap-2 rounded-sm border border-cyan-300/45 bg-cyan-300/20 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-cyan-800 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200">
-              <KanbanSquare class="size-3.5" />
-              Live Kanban
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="space-y-2">
+                <div class="inline-flex w-fit items-center gap-2 rounded-sm border border-cyan-300/45 bg-cyan-300/20 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-cyan-800 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200">
+                  <KanbanSquare class="size-3.5" />
+                  Live Kanban
+                </div>
+                <p class="text-sm text-slate-600 dark:text-slate-300">
+                  Add root tasks, subtasks, and blockers without leaving the board.
+                </p>
+              </div>
+
+              <Button
+                class="border-cyan-300/45 bg-cyan-400/90 text-slate-950 hover:bg-cyan-300 dark:border-cyan-300/25 dark:bg-cyan-300 dark:hover:bg-cyan-200"
+                onClick={openCreateTaskDialog}
+              >
+                <Plus class="size-4" />
+                <span>Add Task</span>
+              </Button>
             </div>
 
             <Show
@@ -292,12 +431,16 @@ function RouteComponent() {
                       No tasks found
                     </h3>
                     <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Waiting for entries in{" "}
+                      Create the first dex task for this project instead of waiting for entries in{" "}
                       <code class="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
                         .dex/tasks.jsonl
                       </code>
                       .
                     </p>
+                    <Button class="mt-5" onClick={openCreateTaskDialog}>
+                      <Plus class="size-4" />
+                      <span>Create First Task</span>
+                    </Button>
                   </div>
                 </div>
               }
@@ -406,6 +549,187 @@ function RouteComponent() {
           </div>
         </Show>
       </div>
+
+      <Dialog onOpenChange={handleCreateTaskOpenChange} open={isCreateTaskOpen()}>
+        <DialogContent class="!w-[min(92vw,46rem)] !max-w-[46rem] !rounded-sm !border !border-slate-300/80 !bg-white !p-0 !text-slate-900 shadow-[0_28px_100px_rgba(148,163,184,0.3)] dark:!border-white/10 dark:!bg-slate-950 dark:!text-slate-100 dark:shadow-[0_28px_100px_rgba(2,6,23,0.8)]">
+          <DialogHeader class="gap-2 border-b border-slate-300/80 bg-[linear-gradient(145deg,rgba(248,250,252,0.95),rgba(240,249,255,0.92))] px-5 py-4 dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(8,47,73,0.45))]">
+            <DialogTitle class="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+              Add Task
+            </DialogTitle>
+            <DialogDescription class="text-sm text-slate-600 dark:text-slate-300">
+              Create a new dex task for {routeProject()?.name ?? "this project"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            class="space-y-5 px-5 py-5 sm:px-6"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleCreateTaskSubmit();
+            }}
+          >
+            <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
+              <label class="space-y-2 text-sm">
+                <span class="font-medium text-slate-800 dark:text-slate-100">Task Name</span>
+                <Input
+                  aria-invalid={createTaskNameError() ? "true" : undefined}
+                  autofocus
+                  disabled={isCreateTaskPending()}
+                  onInput={(event) => {
+                    updateCreateTaskForm("name", event.currentTarget.value);
+                    if (createTaskNameError()) {
+                      setCreateTaskNameError(null);
+                    }
+                  }}
+                  placeholder="Ship the task composer"
+                  value={createTaskForm().name}
+                />
+                <Show when={createTaskNameError()}>
+                  {(message) => (
+                    <p class="text-xs font-medium text-rose-700 dark:text-rose-300">{message()}</p>
+                  )}
+                </Show>
+              </label>
+
+              <label class="space-y-2 text-sm">
+                <span class="font-medium text-slate-800 dark:text-slate-100">Priority</span>
+                <Input
+                  disabled={isCreateTaskPending()}
+                  min="1"
+                  onInput={(event) => updateCreateTaskForm("priority", event.currentTarget.value)}
+                  placeholder="1"
+                  type="number"
+                  value={createTaskForm().priority}
+                />
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  Lower numbers are more urgent in dex.
+                </p>
+              </label>
+            </div>
+
+            <label class="block space-y-2 text-sm">
+              <span class="font-medium text-slate-800 dark:text-slate-100">Description</span>
+              <textarea
+                class="z-textarea min-h-28 w-full resize-y outline-none"
+                disabled={isCreateTaskPending()}
+                onInput={(event) => updateCreateTaskForm("description", event.currentTarget.value)}
+                placeholder="Add context, scope, and what done looks like."
+                value={createTaskForm().description}
+              />
+            </label>
+
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-medium text-slate-800 dark:text-slate-100">Parent Task</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Optional</span>
+                </div>
+
+                <div class="relative">
+                  <select
+                    class="z-native-select pr-9"
+                    disabled={isCreateTaskPending() || !hasTaskRelationOptions()}
+                    onChange={(event) =>
+                      updateCreateTaskForm("parentId", event.currentTarget.value)
+                    }
+                    value={createTaskForm().parentId}
+                  >
+                    <option value="">No parent task</option>
+                    <For each={taskRelationOptions()}>
+                      {(task) => (
+                        <option value={task.id}>
+                          {task.name} ({task.id})
+                        </option>
+                      )}
+                    </For>
+                  </select>
+                  <ChevronDown class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  <Show
+                    when={hasTaskRelationOptions()}
+                    fallback="Open relation controls once the project has tasks."
+                  >
+                    Link this task under an existing parent to create a subtask.
+                  </Show>
+                </p>
+              </div>
+
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-medium text-slate-800 dark:text-slate-100">Blocked By</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">
+                    {createTaskForm().blockedBy.length} selected
+                  </span>
+                </div>
+
+                <div class="max-h-48 space-y-2 overflow-y-auto rounded-sm border border-slate-300/80 bg-slate-50/80 p-2.5 dark:border-white/10 dark:bg-slate-900/70">
+                  <Show
+                    when={hasTaskRelationOptions()}
+                    fallback={
+                      <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Add the first task before you can assign blockers.
+                      </p>
+                    }
+                  >
+                    <For each={taskRelationOptions()}>
+                      {(task) => (
+                        <label class="flex cursor-pointer items-start gap-2 rounded-sm border border-transparent px-2 py-1.5 transition-colors hover:border-cyan-300/30 hover:bg-cyan-100/40 dark:hover:border-cyan-300/25 dark:hover:bg-cyan-400/10">
+                          <input
+                            checked={createTaskForm().blockedBy.includes(task.id)}
+                            class="mt-0.5 size-3.5 rounded-none border border-slate-400 text-cyan-700 focus:ring-2 focus:ring-cyan-500/40 dark:border-slate-500 dark:bg-slate-950 dark:text-cyan-200"
+                            disabled={isCreateTaskPending()}
+                            onChange={(event) =>
+                              toggleBlockedByTask(task.id, event.currentTarget.checked)
+                            }
+                            type="checkbox"
+                          />
+                          <div class="min-w-0">
+                            <div class="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                              {task.name}
+                            </div>
+                            <div class="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                              {task.id} • {getTaskStatusLabel(task)}
+                            </div>
+                          </div>
+                        </label>
+                      )}
+                    </For>
+                  </Show>
+                </div>
+              </div>
+            </div>
+
+            <Show when={createTaskError()}>
+              {(message) => (
+                <div class="rounded-sm border border-rose-300/70 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                  {message()}
+                </div>
+              )}
+            </Show>
+
+            <div class="flex flex-col-reverse gap-2 border-t border-slate-300/80 pt-4 sm:flex-row sm:justify-end dark:border-white/10">
+              <Button
+                disabled={isCreateTaskPending()}
+                onClick={() => handleCreateTaskOpenChange(false)}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button
+                class="bg-cyan-400 text-slate-950 hover:bg-cyan-300 dark:bg-cyan-300 dark:hover:bg-cyan-200"
+                disabled={isCreateTaskPending()}
+                type="submit"
+              >
+                <Plus class="size-4" />
+                <span>{isCreateTaskPending() ? "Creating..." : "Create Task"}</span>
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDetailsOpen()} onOpenChange={handleDetailsOpenChange}>
         <DialogContent class="!flex !max-h-[85vh] !min-h-0 !w-[min(92vw,56rem)] !max-w-[56rem] !flex-col !overflow-hidden !rounded-xl !border !border-slate-300/80 !bg-white !p-0 !text-slate-900 shadow-[0_30px_100px_rgba(148,163,184,0.32)] dark:!border-slate-700/70 dark:!bg-slate-950 dark:!text-slate-100 dark:shadow-[0_30px_100px_rgba(2,6,23,0.75)]">
