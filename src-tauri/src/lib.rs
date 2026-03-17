@@ -1,8 +1,8 @@
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{Pool, Sqlite};
-use std::collections::HashMap;
-use std::fs::{create_dir_all, read_to_string};
+use std::collections::{HashMap, HashSet};
+use std::fs::{create_dir_all, read_to_string, rename, write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem};
@@ -10,6 +10,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_sql::{Migration, MigrationKind};
+use time::{macros::format_description, OffsetDateTime};
 
 const DB_NAME: &str = "dextop.db";
 const PROJECT_ADDED_EVENT: &str = "projects:added";
@@ -46,11 +47,57 @@ struct DexTaskRecord {
     blocks: Vec<String>,
 }
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct DexTaskFileRecord {
+    id: String,
+    #[serde(default, rename = "parent_id", alias = "parentId")]
+    parent_id: Option<String>,
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    priority: Option<i64>,
+    #[serde(default)]
+    completed: bool,
+    #[serde(default)]
+    result: Option<String>,
+    #[serde(default)]
+    metadata: Option<serde_json::Value>,
+    #[serde(default, rename = "started_at", alias = "startedAt")]
+    started_at: Option<String>,
+    #[serde(default, rename = "completed_at", alias = "completedAt")]
+    completed_at: Option<String>,
+    #[serde(default, rename = "created_at", alias = "createdAt")]
+    created_at: Option<String>,
+    #[serde(default, rename = "updated_at", alias = "updatedAt")]
+    updated_at: Option<String>,
+    #[serde(default, rename = "blockedBy", alias = "blocked_by")]
+    blocked_by: Vec<String>,
+    #[serde(default)]
+    blocks: Vec<String>,
+    #[serde(default)]
+    children: Vec<String>,
+}
+
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct TasksUpdatedEvent {
     project_path: String,
     tasks: Vec<DexTaskRecord>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateProjectTaskInput {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    priority: Option<i64>,
+    #[serde(default)]
+    parent_id: Option<String>,
+    #[serde(default)]
+    blocked_by: Vec<String>,
 }
 
 struct ActiveTaskWatcher {
@@ -84,6 +131,25 @@ impl From<ProjectRow> for ProjectRecord {
             last_opened_at,
             created_at,
             updated_at,
+        }
+    }
+}
+
+impl From<DexTaskFileRecord> for DexTaskRecord {
+    fn from(task: DexTaskFileRecord) -> Self {
+        Self {
+            id: task.id,
+            parent_id: task.parent_id,
+            name: task.name,
+            description: task.description,
+            priority: task.priority,
+            completed: task.completed,
+            started_at: task.started_at,
+            completed_at: task.completed_at,
+            created_at: task.created_at,
+            updated_at: task.updated_at,
+            blocked_by: task.blocked_by,
+            blocks: task.blocks,
         }
     }
 }
@@ -142,6 +208,40 @@ fn load_project_tasks_from_file(tasks_file: &Path) -> Result<Vec<DexTaskRecord>,
                 );
             }
         }
+    }
+
+    Ok(tasks)
+}
+
+fn load_project_task_records_for_write(
+    tasks_file: &Path,
+) -> Result<Vec<DexTaskFileRecord>, String> {
+    if !tasks_file.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = read_to_string(tasks_file).map_err(|e| {
+        format!(
+            "failed to read dex tasks file {}: {e}",
+            tasks_file.display()
+        )
+    })?;
+
+    let mut tasks = Vec::new();
+    for (line_index, line) in content.lines().enumerate() {
+        let trimmed_line = line.trim();
+        if trimmed_line.is_empty() {
+            continue;
+        }
+
+        let task = serde_json::from_str::<DexTaskFileRecord>(trimmed_line).map_err(|error| {
+            format!(
+                "failed to parse dex tasks file {}:{} ({error})",
+                tasks_file.display(),
+                line_index + 1
+            )
+        })?;
+        tasks.push(task);
     }
 
     Ok(tasks)
@@ -237,6 +337,231 @@ fn create_project_tasks_watcher(
     })?;
 
     Ok(watcher)
+}
+
+fn trim_optional_value(value: Option<String>) -> Option<String> {
+    value.and_then(|raw| {
+        let trimmed = raw.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
+fn normalize_blocked_by(task_ids: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut normalized = Vec::new();
+
+    for task_id in task_ids {
+        let trimmed = task_id.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let normalized_task_id = trimmed.to_string();
+        if seen.insert(normalized_task_id.clone()) {
+            normalized.push(normalized_task_id);
+        }
+    }
+
+    normalized
+}
+
+fn validate_create_task_input(
+    input: CreateProjectTaskInput,
+) -> Result<
+    (
+        String,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Vec<String>,
+    ),
+    String,
+> {
+    let trimmed_name = input.name.trim().to_string();
+    if trimmed_name.is_empty() {
+        return Err("task name cannot be empty".to_string());
+    }
+
+    if let Some(priority) = input.priority {
+        if priority < 0 {
+            return Err("priority must be zero or greater".to_string());
+        }
+    }
+
+    Ok((
+        trimmed_name,
+        trim_optional_value(input.description),
+        input.priority,
+        trim_optional_value(input.parent_id),
+        normalize_blocked_by(input.blocked_by),
+    ))
+}
+
+fn generate_task_id(existing_tasks: &[DexTaskFileRecord]) -> String {
+    const ID_LENGTH: usize = 8;
+    const BASE36_ALPHABET: &[u8; 36] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+
+    let existing_ids = existing_tasks
+        .iter()
+        .map(|task| task.id.as_str())
+        .collect::<HashSet<_>>();
+
+    let mut seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+
+    loop {
+        let mut value = seed;
+        let mut encoded = Vec::with_capacity(ID_LENGTH);
+        while encoded.len() < ID_LENGTH {
+            encoded.push(BASE36_ALPHABET[(value % 36) as usize] as char);
+            value /= 36;
+        }
+        encoded.reverse();
+        let candidate = encoded.into_iter().collect::<String>();
+
+        if !existing_ids.contains(candidate.as_str()) {
+            return candidate;
+        }
+
+        seed += 1;
+    }
+}
+
+fn current_task_timestamp() -> Result<String, String> {
+    OffsetDateTime::now_utc()
+        .format(&format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
+        ))
+        .map_err(|e| format!("failed to format task timestamp: {e}"))
+}
+
+fn write_project_task_records(
+    tasks_file: &Path,
+    tasks: &[DexTaskFileRecord],
+) -> Result<(), String> {
+    let serialized_tasks = tasks
+        .iter()
+        .map(|task| serde_json::to_string(task).map_err(|e| format!("failed to encode task: {e}")))
+        .collect::<Result<Vec<_>, _>>()?;
+    let file_contents = if serialized_tasks.is_empty() {
+        String::new()
+    } else {
+        format!("{}\n", serialized_tasks.join("\n"))
+    };
+
+    let parent_directory = tasks_file
+        .parent()
+        .ok_or_else(|| "failed to resolve dex task directory".to_string())?;
+    create_dir_all(parent_directory).map_err(|e| {
+        format!(
+            "failed to create dex task directory {}: {e}",
+            parent_directory.display()
+        )
+    })?;
+
+    let temporary_path = parent_directory.join(format!(
+        ".{}.tmp-{}-{}",
+        DEX_TASKS_FILE_NAME,
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0)
+    ));
+    write(&temporary_path, file_contents).map_err(|e| {
+        format!(
+            "failed to write temporary dex task file {}: {e}",
+            temporary_path.display()
+        )
+    })?;
+    rename(&temporary_path, tasks_file).map_err(|e| {
+        format!(
+            "failed to replace dex task file {}: {e}",
+            tasks_file.display()
+        )
+    })
+}
+
+fn create_task_record(
+    existing_tasks: &mut Vec<DexTaskFileRecord>,
+    input: CreateProjectTaskInput,
+) -> Result<(), String> {
+    let (name, description, priority, parent_id, blocked_by) = validate_create_task_input(input)?;
+
+    if let Some(parent_task_id) = parent_id.as_ref() {
+        if !existing_tasks.iter().any(|task| task.id == *parent_task_id) {
+            return Err(format!("parent task \"{parent_task_id}\" was not found"));
+        }
+    }
+
+    let missing_blockers = blocked_by
+        .iter()
+        .filter(|task_id| !existing_tasks.iter().any(|task| task.id == **task_id))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !missing_blockers.is_empty() {
+        return Err(format!(
+            "blocked-by task(s) not found: {}",
+            missing_blockers.join(", ")
+        ));
+    }
+
+    let new_task_id = generate_task_id(existing_tasks);
+    let timestamp = current_task_timestamp()?;
+
+    if let Some(parent_task_id) = parent_id.as_ref() {
+        if let Some(parent_task) = existing_tasks
+            .iter_mut()
+            .find(|task| task.id == *parent_task_id)
+        {
+            if !parent_task
+                .children
+                .iter()
+                .any(|child_id| child_id == &new_task_id)
+            {
+                parent_task.children.push(new_task_id.clone());
+                parent_task.updated_at = Some(timestamp.clone());
+            }
+        }
+    }
+
+    for blocker_id in &blocked_by {
+        if let Some(blocker_task) = existing_tasks
+            .iter_mut()
+            .find(|task| task.id == *blocker_id)
+        {
+            if !blocker_task
+                .blocks
+                .iter()
+                .any(|blocked_task_id| blocked_task_id == &new_task_id)
+            {
+                blocker_task.blocks.push(new_task_id.clone());
+                blocker_task.updated_at = Some(timestamp.clone());
+            }
+        }
+    }
+
+    existing_tasks.push(DexTaskFileRecord {
+        id: new_task_id,
+        parent_id,
+        name,
+        description,
+        priority,
+        completed: false,
+        result: None,
+        metadata: None,
+        started_at: None,
+        completed_at: None,
+        created_at: Some(timestamp.clone()),
+        updated_at: Some(timestamp),
+        blocked_by,
+        blocks: Vec::new(),
+        children: Vec::new(),
+    });
+
+    Ok(())
 }
 
 async fn connect_db(app: &tauri::AppHandle) -> Result<Pool<Sqlite>, String> {
@@ -564,14 +889,45 @@ fn watch_project_tasks(
             create_project_tasks_watcher(&app, normalized_project_path.to_string(), tasks_file)?;
         active_watchers.insert(
             normalized_project_path.to_string(),
-            ActiveTaskWatcher {
-                _watcher: watcher,
-            },
+            ActiveTaskWatcher { _watcher: watcher },
         );
     }
 
     emit_tasks_updated(&app, normalized_project_path, tasks.clone())?;
     Ok(tasks)
+}
+
+#[tauri::command]
+fn create_project_task(
+    app: tauri::AppHandle,
+    project_path: String,
+    input: CreateProjectTaskInput,
+) -> Result<(), String> {
+    let normalized_project_path = project_path.trim();
+    if normalized_project_path.is_empty() {
+        return Err("project path cannot be empty".to_string());
+    }
+
+    let project_dir = Path::new(normalized_project_path);
+    if !project_dir.exists() {
+        return Err("project path does not exist".to_string());
+    }
+    if !project_dir.is_dir() {
+        return Err("project path must point to a directory".to_string());
+    }
+
+    let tasks_file = tasks_file_for_project(normalized_project_path);
+    let mut task_records = load_project_task_records_for_write(&tasks_file)?;
+    create_task_record(&mut task_records, input)?;
+    write_project_task_records(&tasks_file, &task_records)?;
+
+    let tasks = task_records
+        .into_iter()
+        .map(DexTaskRecord::from)
+        .collect::<Vec<_>>();
+    emit_tasks_updated(&app, normalized_project_path, tasks)?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -640,6 +996,7 @@ CREATE TABLE IF NOT EXISTS projects (
             open_project_window,
             clear_projects,
             watch_project_tasks,
+            create_project_task,
             unwatch_project_tasks,
             clear_project_tasks_watch
         ])
