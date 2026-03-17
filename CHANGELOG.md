@@ -1,3 +1,8 @@
+## [0.0.5] - 2026-03-17
+
+### 🐛 Bug Fixes
+
+- Update tauri-conf version
 ## [0.0.4] - 2026-03-17
 
 ### 🐛 Bug Fixes
