@@ -1,3 +1,15 @@
+## [0.1.0] - 2026-03-17
+
+### 🚀 Features
+
+- Track multiple projects at once
+- Add context menu to sidebar
+- Manual task creation
+
+### 🐛 Bug Fixes
+
+- Remove dependency on dex
+- Remove race condition on dialog close
 ## [0.0.5] - 2026-03-17
 
 ### 🐛 Bug Fixes
