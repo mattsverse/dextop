@@ -27,6 +27,7 @@ sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runti
 tauri-plugin-dialog = "2"
 notify = "8"
 tauri-plugin-process = "2"
+time = { version = "0.3", features = ["formatting", "macros"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
