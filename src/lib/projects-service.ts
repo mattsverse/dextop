@@ -61,6 +61,15 @@ export async function deleteProject(projectId: string): Promise<boolean> {
   return invoke<boolean>("delete_project", { projectId: numericProjectId });
 }
 
+export async function openProjectWindow(projectId: string): Promise<void> {
+  const numericProjectId = Number(projectId);
+  if (!Number.isInteger(numericProjectId)) {
+    return;
+  }
+
+  await invoke("open_project_window", { projectId: numericProjectId });
+}
+
 export async function clearProjects(): Promise<number> {
   return invoke<number>("clear_projects");
 }

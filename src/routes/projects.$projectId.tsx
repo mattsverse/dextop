@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { useProjects } from "@/contexts/projects-context";
 import { useTasks } from "@/contexts/tasks-context";
-import { createFileRoute } from "@tanstack/solid-router";
+import { createFileRoute, Navigate } from "@tanstack/solid-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,7 +17,7 @@ import {
   OctagonAlert,
   PartyPopper,
 } from "lucide-solid";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createRenderEffect, createSignal, For, Show } from "solid-js";
 import { DexTask } from "@/lib/tasks-service";
 
 export const Route = createFileRoute("/projects/$projectId")({
@@ -96,7 +96,7 @@ function toTimestamp(value: string | null): number {
 
 function RouteComponent() {
   const params = Route.useParams()();
-  const { selectProject, selectedProjectId } = useProjects();
+  const { isProjectsInitialized, projects, selectProject } = useProjects();
   const { projectTasks } = useTasks();
   const [isDetailsOpen, setIsDetailsOpen] = createSignal(false);
   const [selectedTaskId, setSelectedTaskId] = createSignal<string | null>(null);
@@ -105,6 +105,23 @@ function RouteComponent() {
     inProgress: false,
     blocked: false,
     done: false,
+  });
+
+  const routeProject = createMemo(() => {
+    return projects().find((project) => project.id === params.projectId) ?? null;
+  });
+
+  const shouldRedirectToProjects = createMemo(() => {
+    return isProjectsInitialized() && routeProject() === null;
+  });
+
+  createRenderEffect(() => {
+    const project = routeProject();
+    if (!project) {
+      return;
+    }
+
+    selectProject(project.id);
   });
 
   const sortedProjectTasks = createMemo(() => {
@@ -219,26 +236,43 @@ function RouteComponent() {
     }));
   };
 
-  selectProject(params.projectId);
+  if (shouldRedirectToProjects()) {
+    return <Navigate to="/projects" />;
+  }
+
   return (
     <section class="relative h-[calc(100%-56px)] overflow-hidden p-4 sm:p-6">
       <div class="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:28px_28px]" />
       <div class="relative mx-auto h-full max-w-7xl">
         <Show
-          when={selectedProjectId()}
+          when={routeProject()}
           fallback={
             <div class="flex h-full items-center justify-center">
               <div class="w-full max-w-3xl rounded-sm border border-slate-300/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(241,245,249,0.75))] p-8 text-center shadow-[0_24px_70px_rgba(148,163,184,0.3)] backdrop-blur-xl dark:border-white/15 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75),rgba(2,6,23,0.6))] dark:shadow-[0_24px_70px_rgba(2,6,23,0.55)] sm:p-12">
-                <h2 class="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
-                  Choose a project to load your board
-                </h2>
-                <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
-                  Open a project from the sidebar to start watching{" "}
-                  <code class="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
-                    .dex/tasks.jsonl
-                  </code>
-                  .
-                </p>
+                <Show
+                  fallback={
+                    <>
+                      <h2 class="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
+                        Choose a project to load your board
+                      </h2>
+                      <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+                        Open a project from the sidebar to start watching{" "}
+                        <code class="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
+                          .dex/tasks.jsonl
+                        </code>
+                        .
+                      </p>
+                    </>
+                  }
+                  when={!isProjectsInitialized()}
+                >
+                  <h2 class="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
+                    Loading project board
+                  </h2>
+                  <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+                    Loading your stored projects and watching task files.
+                  </p>
+                </Show>
               </div>
             </div>
           }

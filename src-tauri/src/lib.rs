@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -86,6 +86,14 @@ impl From<ProjectRow> for ProjectRecord {
             updated_at,
         }
     }
+}
+
+fn project_window_label(project_id: i64) -> String {
+    format!("project-{project_id}")
+}
+
+fn project_window_route(project_id: i64) -> String {
+    format!("/projects/{project_id}")
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -428,6 +436,55 @@ WHERE id = ?1;
 }
 
 #[tauri::command]
+async fn open_project_window(app: tauri::AppHandle, project_id: i64) -> Result<(), String> {
+    let pool = connect_db(&app).await?;
+    let project_record = sqlx::query_as::<_, ProjectRow>(
+        r#"
+SELECT
+  id,
+  folder_name,
+  folder_path,
+  last_opened_at,
+  created_at,
+  updated_at
+FROM projects
+WHERE id = ?1
+LIMIT 1;
+"#,
+    )
+    .bind(project_id)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| format!("failed to load project before opening window: {e}"))?;
+    pool.close().await;
+
+    let Some(project_record) = project_record.map(ProjectRecord::from) else {
+        return Err("project not found".to_string());
+    };
+
+    let window_label = project_window_label(project_record.id);
+    if let Some(window) = app.get_webview_window(&window_label) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    let title = format!("dextop - {}", project_record.folder_name);
+    let route = project_window_route(project_record.id);
+
+    let window = WebviewWindowBuilder::new(&app, &window_label, WebviewUrl::App(route.into()))
+        .title(&title)
+        .build()
+        .map_err(|e| format!("failed to build project window: {e}"))?;
+
+    let _ = window.show();
+    let _ = window.set_focus();
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn clear_projects(app: tauri::AppHandle) -> Result<u64, String> {
     let pool = connect_db(&app).await?;
     let project_ids = sqlx::query_scalar::<_, i64>(
@@ -580,6 +637,7 @@ CREATE TABLE IF NOT EXISTS projects (
             list_projects,
             pick_and_add_project,
             delete_project,
+            open_project_window,
             clear_projects,
             watch_project_tasks,
             unwatch_project_tasks,
