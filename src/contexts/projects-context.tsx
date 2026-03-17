@@ -6,17 +6,20 @@ import {
   listProjects,
   listenToProjectMutations,
   openProject as openProjectRequest,
+  openProjectWindow as openProjectWindowRequest,
   type ProjectItem,
 } from "@/lib/projects-service";
 
 type ProjectsContextValue = {
   projects: Accessor<ProjectItem[]>;
+  isProjectsInitialized: Accessor<boolean>;
   selectedProjectId: Accessor<string | null>;
   selectedProjectName: () => string;
   selectProject: (projectId: string) => void;
   setProjectTaskCount: (projectPath: string, taskCount: number) => void;
   reloadProjects: () => Promise<void>;
   openProject: () => Promise<void>;
+  openProjectInSeparateWindow: (projectId: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   clearAllProjects: () => Promise<void>;
   initializeProjectsStore: () => Promise<void>;
@@ -27,6 +30,7 @@ const ProjectsContext = createContext<ProjectsContextValue>();
 
 export function ProjectsProvider(props: { children: JSX.Element }) {
   const [projectsState, setProjectsState] = createSignal<ProjectItem[]>([]);
+  const [isProjectsInitializedState, setIsProjectsInitializedState] = createSignal(false);
   const [selectedProjectIdState, setSelectedProjectIdState] = createSignal<string | null>(null);
 
   let unlistenProjectMutations: (() => void) | undefined;
@@ -52,8 +56,18 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
 
   const reloadProjects = async () => {
     const loadedProjects = await listProjects();
-    setProjectsState(loadedProjects);
-    ensureSelection(loadedProjects);
+    let nextProjects: ProjectItem[] = [];
+    setProjectsState((currentProjects) => {
+      const taskCountsByPath = new Map(
+        currentProjects.map((project) => [project.path, project.tasks] as const),
+      );
+      nextProjects = loadedProjects.map((project) => ({
+        ...project,
+        tasks: taskCountsByPath.get(project.path) ?? project.tasks,
+      }));
+      return nextProjects;
+    });
+    ensureSelection(nextProjects);
   };
 
   const selectProject = (projectId: string) => {
@@ -84,6 +98,14 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
     }
   };
 
+  const openProjectInSeparateWindow = async (projectId: string) => {
+    try {
+      await openProjectWindowRequest(projectId);
+    } catch (error) {
+      console.error("Failed to open project in a separate window", error);
+    }
+  };
+
   const clearAllProjects = async () => {
     try {
       await clearProjectsRequest();
@@ -106,10 +128,23 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
       await reloadProjects();
       unlistenProjectMutations = await listenToProjectMutations({
         onProjectAdded: (project) => {
-          setProjectsState((currentProjects) => [
-            project,
-            ...currentProjects.filter((currentProject) => currentProject.id !== project.id),
-          ]);
+          setProjectsState((currentProjects) => {
+            const existingProject = currentProjects.find(
+              (currentProject) =>
+                currentProject.id === project.id || currentProject.path === project.path,
+            );
+
+            return [
+              {
+                ...project,
+                tasks: existingProject?.tasks ?? project.tasks,
+              },
+              ...currentProjects.filter(
+                (currentProject) =>
+                  currentProject.id !== project.id && currentProject.path !== project.path,
+              ),
+            ];
+          });
         },
         onProjectDeleted: (projectId) => {
           let remainingProjects: ProjectItem[] = [];
@@ -121,6 +156,7 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
         },
       });
       isInitialized = true;
+      setIsProjectsInitializedState(true);
     })();
 
     try {
@@ -135,18 +171,21 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
     unlistenProjectMutations = undefined;
     initializationPromise = undefined;
     isInitialized = false;
+    setIsProjectsInitializedState(false);
   };
 
   return (
     <ProjectsContext.Provider
       value={{
         projects: projectsState,
+        isProjectsInitialized: isProjectsInitializedState,
         selectedProjectId: selectedProjectIdState,
         selectedProjectName,
         selectProject,
         setProjectTaskCount,
         reloadProjects,
         openProject,
+        openProjectInSeparateWindow,
         deleteProject,
         clearAllProjects,
         initializeProjectsStore,

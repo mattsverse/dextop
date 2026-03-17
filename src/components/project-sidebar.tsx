@@ -1,6 +1,13 @@
 import { For } from "solid-js";
 import { useNavigate } from "@tanstack/solid-router";
-import { FolderKanban, Plus, Trash2 } from "lucide-solid";
+import { ExternalLink, FolderKanban, Plus, Trash2 } from "lucide-solid";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useProjects } from "@/contexts/projects-context";
 import {
   Sidebar,
@@ -11,14 +18,14 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
 export function ProjectSidebar() {
   const navigate = useNavigate();
-  const { deleteProject, openProject, projects, selectedProjectId } = useProjects();
+  const { deleteProject, openProject, openProjectInSeparateWindow, projects, selectedProjectId } =
+    useProjects();
 
   return (
     <Sidebar
@@ -46,46 +53,61 @@ export function ProjectSidebar() {
               <For each={projects()}>
                 {(project) => (
                   <SidebarMenuItem>
-                    <SidebarMenuButton
-                      class={`h-auto flex-col items-start gap-1 rounded-sm border px-2.5 py-2.5 pr-10 text-sidebar-foreground transition-all hover:border-slate-300/80 hover:bg-slate-100/60 dark:hover:border-white/10 dark:hover:bg-white/5 ${
-                        project.id === selectedProjectId()
-                          ? "border-sky-300/40 bg-sky-300/20 shadow-[0_0_0_1px_rgba(125,211,252,0.2)] dark:border-sky-300/30 dark:bg-sky-300/10 dark:shadow-[0_0_0_1px_rgba(125,211,252,0.12)]"
-                          : "border-transparent"
-                      }`}
-                      isActive={project.id === selectedProjectId()}
-                      onClick={() => {
-                        navigate({
-                          to: "/projects/$projectId",
-                          params: { projectId: project.id },
-                        });
-                      }}
-                    >
-                      <div class="flex w-full items-center justify-between gap-2">
-                        <span class="truncate text-sm font-medium text-slate-800 dark:text-white">
-                          {project.name}
-                        </span>
-                        <span class="shrink-0 rounded-sm bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-white/10 dark:text-sidebar-foreground/80">
-                          {project.tasks}
-                        </span>
-                      </div>
-                      <span class="w-full truncate font-mono text-[10px] text-sidebar-foreground/55">
-                        {project.path}
-                      </span>
-                      <div class="text-[10px] uppercase tracking-[0.08em] text-sidebar-foreground/45">
-                        Open tasks
-                      </div>
-                    </SidebarMenuButton>
-                    <SidebarMenuAction
-                      class="absolute right-2 top-2 rounded-sm border border-slate-300/70 bg-white/80 p-1 text-slate-500 hover:border-rose-300/60 hover:bg-rose-400/15 hover:text-rose-700 dark:border-white/10 dark:bg-black/20 dark:text-sidebar-foreground/55 dark:hover:border-rose-300/40 dark:hover:text-rose-100"
-                      showOnHover
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void deleteProject(project.id);
-                      }}
-                      title={`Delete ${project.name}`}
-                    >
-                      <Trash2 class="size-3.5" />
-                    </SidebarMenuAction>
+                    <ContextMenu>
+                      <ContextMenuTrigger class="block">
+                        <SidebarMenuButton
+                          class={`h-auto flex-col items-start gap-1 rounded-sm border px-2.5 py-2.5 text-sidebar-foreground transition-all hover:border-slate-300/80 hover:bg-slate-100/60 dark:hover:border-white/10 dark:hover:bg-white/5 ${
+                            project.id === selectedProjectId()
+                              ? "border-sky-300/40 bg-sky-300/20 shadow-[0_0_0_1px_rgba(125,211,252,0.2)] dark:border-sky-300/30 dark:bg-sky-300/10 dark:shadow-[0_0_0_1px_rgba(125,211,252,0.12)]"
+                              : "border-transparent"
+                          }`}
+                          isActive={project.id === selectedProjectId()}
+                          onClick={() => {
+                            navigate({
+                              to: "/projects/$projectId",
+                              params: { projectId: project.id },
+                            });
+                          }}
+                        >
+                          <div class="flex w-full items-center justify-between gap-2">
+                            <span class="truncate text-sm font-medium text-slate-800 dark:text-white">
+                              {project.name}
+                            </span>
+                            <span class="shrink-0 rounded-sm bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-white/10 dark:text-sidebar-foreground/80">
+                              {project.tasks}
+                            </span>
+                          </div>
+                          <span class="w-full truncate font-mono text-[10px] text-sidebar-foreground/55">
+                            {project.path}
+                          </span>
+                          <div class="text-[10px] uppercase tracking-[0.08em] text-sidebar-foreground/45">
+                            Open tasks
+                          </div>
+                        </SidebarMenuButton>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent class="w-52 rounded-sm border border-slate-300/80 bg-white/96 p-1.5 shadow-[0_20px_60px_rgba(148,163,184,0.28)] dark:border-white/10 dark:bg-slate-950/95 dark:shadow-[0_20px_60px_rgba(2,6,23,0.6)]">
+                        <ContextMenuItem
+                          class="rounded-sm text-slate-700 dark:text-slate-100"
+                          onSelect={() => {
+                            void openProjectInSeparateWindow(project.id);
+                          }}
+                        >
+                          <ExternalLink class="size-4" />
+                          <span>Open in separate window</span>
+                        </ContextMenuItem>
+                        <ContextMenuSeparator class="my-1" />
+                        <ContextMenuItem
+                          class="rounded-sm"
+                          onSelect={() => {
+                            void deleteProject(project.id);
+                          }}
+                          variant="destructive"
+                        >
+                          <Trash2 class="size-4" />
+                          <span>Delete project</span>
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </SidebarMenuItem>
                 )}
               </For>

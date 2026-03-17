@@ -1,9 +1,10 @@
 import type { Accessor, JSX } from "solid-js";
-import { createContext, createSignal, useContext } from "solid-js";
+import { createContext, createEffect, createSignal, useContext } from "solid-js";
 import { useProjects } from "@/contexts/projects-context";
 import {
   clearProjectTasksWatch,
   listenToTaskUpdates,
+  unwatchProjectTasks,
   watchProjectTasks,
   type DexTask,
 } from "@/lib/tasks-service";
@@ -22,18 +23,64 @@ function countOpenTasks(tasks: DexTask[]): number {
 }
 
 export function TasksProvider(props: { children: JSX.Element }) {
-  const { setProjectTaskCount } = useProjects();
+  const { projects, setProjectTaskCount } = useProjects();
   const [projectTasksState, setProjectTasksState] = createSignal<DexTask[]>([]);
   const [activeProjectPathState, setActiveProjectPathState] = createSignal<string | null>(null);
+  const [isInitializedState, setIsInitializedState] = createSignal(false);
 
   let unlistenTaskUpdates: (() => void) | undefined;
   let initializationPromise: Promise<void> | undefined;
   let isInitialized = false;
+  let watchedProjectPaths = new Set<string>();
 
   const applyTasks = (projectPath: string, tasks: DexTask[]) => {
-    setProjectTasksState(tasks);
+    if (activeProjectPathState() === projectPath) {
+      setProjectTasksState(tasks);
+    }
     setProjectTaskCount(projectPath, countOpenTasks(tasks));
   };
+
+  const syncProjectWatches = async (projectPaths: string[]) => {
+    const normalizedProjectPaths = [...new Set(projectPaths.filter(Boolean))];
+    const nextWatchedProjectPaths = new Set(normalizedProjectPaths);
+
+    const projectPathsToRemove = [...watchedProjectPaths].filter(
+      (projectPath) => !nextWatchedProjectPaths.has(projectPath),
+    );
+    const projectPathsToAdd = normalizedProjectPaths.filter(
+      (projectPath) => !watchedProjectPaths.has(projectPath),
+    );
+
+    watchedProjectPaths = nextWatchedProjectPaths;
+
+    await Promise.all(
+      projectPathsToRemove.map(async (projectPath) => {
+        await unwatchProjectTasks(projectPath);
+      }),
+    );
+
+    const taskSnapshots = await Promise.all(
+      projectPathsToAdd.map(async (projectPath) => ({
+        projectPath,
+        tasks: await watchProjectTasks(projectPath),
+      })),
+    );
+
+    for (const { projectPath, tasks } of taskSnapshots) {
+      applyTasks(projectPath, tasks);
+    }
+  };
+
+  createEffect(() => {
+    if (!isInitializedState()) {
+      return;
+    }
+
+    const projectPaths = projects().map((project) => project.path);
+    void syncProjectWatches(projectPaths).catch((error) => {
+      console.error("Failed to synchronize project task watchers", error);
+    });
+  });
 
   const initializeTasksStore = async () => {
     if (isInitialized) {
@@ -46,13 +93,10 @@ export function TasksProvider(props: { children: JSX.Element }) {
 
     initializationPromise = (async () => {
       unlistenTaskUpdates = await listenToTaskUpdates(({ projectPath, tasks }) => {
-        if (projectPath !== activeProjectPathState()) {
-          return;
-        }
-
         applyTasks(projectPath, tasks);
       });
       isInitialized = true;
+      setIsInitializedState(true);
     })();
 
     try {
@@ -71,7 +115,6 @@ export function TasksProvider(props: { children: JSX.Element }) {
 
     if (!projectPath) {
       setProjectTasksState([]);
-      await clearProjectTasksWatch();
       return;
     }
 
@@ -88,6 +131,8 @@ export function TasksProvider(props: { children: JSX.Element }) {
     unlistenTaskUpdates = undefined;
     initializationPromise = undefined;
     isInitialized = false;
+    watchedProjectPaths = new Set<string>();
+    setIsInitializedState(false);
     void clearProjectTasksWatch().catch((error) => {
       console.error("Failed to clear project task watcher", error);
     });
