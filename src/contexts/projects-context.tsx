@@ -52,8 +52,18 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
 
   const reloadProjects = async () => {
     const loadedProjects = await listProjects();
-    setProjectsState(loadedProjects);
-    ensureSelection(loadedProjects);
+    let nextProjects: ProjectItem[] = [];
+    setProjectsState((currentProjects) => {
+      const taskCountsByPath = new Map(
+        currentProjects.map((project) => [project.path, project.tasks] as const),
+      );
+      nextProjects = loadedProjects.map((project) => ({
+        ...project,
+        tasks: taskCountsByPath.get(project.path) ?? project.tasks,
+      }));
+      return nextProjects;
+    });
+    ensureSelection(nextProjects);
   };
 
   const selectProject = (projectId: string) => {
@@ -106,10 +116,23 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
       await reloadProjects();
       unlistenProjectMutations = await listenToProjectMutations({
         onProjectAdded: (project) => {
-          setProjectsState((currentProjects) => [
-            project,
-            ...currentProjects.filter((currentProject) => currentProject.id !== project.id),
-          ]);
+          setProjectsState((currentProjects) => {
+            const existingProject = currentProjects.find(
+              (currentProject) =>
+                currentProject.id === project.id || currentProject.path === project.path,
+            );
+
+            return [
+              {
+                ...project,
+                tasks: existingProject?.tasks ?? project.tasks,
+              },
+              ...currentProjects.filter(
+                (currentProject) =>
+                  currentProject.id !== project.id && currentProject.path !== project.path,
+              ),
+            ];
+          });
         },
         onProjectDeleted: (projectId) => {
           let remainingProjects: ProjectItem[] = [];

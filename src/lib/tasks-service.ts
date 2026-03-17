@@ -27,6 +27,10 @@ export async function watchProjectTasks(projectPath: string): Promise<DexTask[]>
   return invoke<DexTask[]>("watch_project_tasks", { projectPath });
 }
 
+export async function unwatchProjectTasks(projectPath: string): Promise<void> {
+  await invoke("unwatch_project_tasks", { projectPath });
+}
+
 export async function clearProjectTasksWatch(): Promise<void> {
   await invoke("clear_project_tasks_watch");
 }

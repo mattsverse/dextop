@@ -1,6 +1,7 @@
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{Pool, Sqlite};
+use std::collections::HashMap;
 use std::fs::{create_dir_all, read_to_string};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -53,13 +54,12 @@ struct TasksUpdatedEvent {
 }
 
 struct ActiveTaskWatcher {
-    project_path: String,
     _watcher: RecommendedWatcher,
 }
 
 #[derive(Default)]
 struct TaskWatcherState {
-    active: Mutex<Option<ActiveTaskWatcher>>,
+    active: Mutex<HashMap<String, ActiveTaskWatcher>>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -497,23 +497,20 @@ fn watch_project_tasks(
     let tasks_file = tasks_file_for_project(normalized_project_path);
     let tasks = load_project_tasks_from_file(&tasks_file)?;
 
-    let mut active_watcher = watcher_state
+    let mut active_watchers = watcher_state
         .active
         .lock()
         .map_err(|_| "failed to lock task watcher state".to_string())?;
 
-    let restart_watcher = match active_watcher.as_ref() {
-        Some(watcher) => watcher.project_path != normalized_project_path,
-        None => true,
-    };
-    if restart_watcher {
-        *active_watcher = None;
+    if !active_watchers.contains_key(normalized_project_path) {
         let watcher =
             create_project_tasks_watcher(&app, normalized_project_path.to_string(), tasks_file)?;
-        *active_watcher = Some(ActiveTaskWatcher {
-            project_path: normalized_project_path.to_string(),
-            _watcher: watcher,
-        });
+        active_watchers.insert(
+            normalized_project_path.to_string(),
+            ActiveTaskWatcher {
+                _watcher: watcher,
+            },
+        );
     }
 
     emit_tasks_updated(&app, normalized_project_path, tasks.clone())?;
@@ -521,14 +518,32 @@ fn watch_project_tasks(
 }
 
 #[tauri::command]
-fn clear_project_tasks_watch(
+fn unwatch_project_tasks(
     watcher_state: tauri::State<'_, TaskWatcherState>,
+    project_path: String,
 ) -> Result<(), String> {
-    let mut active_watcher = watcher_state
+    let normalized_project_path = project_path.trim();
+    if normalized_project_path.is_empty() {
+        return Err("project path cannot be empty".to_string());
+    }
+
+    let mut active_watchers = watcher_state
         .active
         .lock()
         .map_err(|_| "failed to lock task watcher state".to_string())?;
-    *active_watcher = None;
+    active_watchers.remove(normalized_project_path);
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_project_tasks_watch(
+    watcher_state: tauri::State<'_, TaskWatcherState>,
+) -> Result<(), String> {
+    let mut active_watchers = watcher_state
+        .active
+        .lock()
+        .map_err(|_| "failed to lock task watcher state".to_string())?;
+    active_watchers.clear();
     Ok(())
 }
 
@@ -567,6 +582,7 @@ CREATE TABLE IF NOT EXISTS projects (
             delete_project,
             clear_projects,
             watch_project_tasks,
+            unwatch_project_tasks,
             clear_project_tasks_watch
         ])
         .setup(|app| {
