@@ -272,10 +272,17 @@ function RouteComponent() {
   };
 
   const handleCreateTaskOpenChange = (open: boolean) => {
-    setIsCreateTaskOpen(open);
+    if (!open && isCreateTaskPending()) {
+      return;
+    }
+
     if (!open) {
       resetCreateTaskForm();
+      setIsCreateTaskOpen(false);
+      return;
     }
+
+    setIsCreateTaskOpen(true);
   };
 
   const updateCreateTaskForm = <K extends keyof CreateTaskFormState>(
