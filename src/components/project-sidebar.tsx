@@ -13,7 +13,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -28,40 +27,36 @@ export function ProjectSidebar() {
 
   return (
     <Sidebar
-      className="border-sidebar-border/80 bg-sidebar text-sidebar-foreground backdrop-blur-xl"
+      className="border-sidebar-border/80 bg-sidebar text-sidebar-foreground"
       variant="sidebar"
     >
       <SidebarHeader className="border-sidebar-border/80 border-b px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-full border border-sidebar-border/80 bg-background/80 text-primary">
-            <FolderKanban className="size-4" />
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <FolderKanban className="size-4 text-sidebar-foreground/70" />
+            <h1 className="text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">Projects</h1>
           </div>
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/55">
-              Workspace
-            </p>
-            <h1 className="text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">
-              Projects
-            </h1>
-          </div>
+          <p className="text-xs text-sidebar-foreground/60">Add a project to browse its dex tasks.</p>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-3 py-3">
         <SidebarGroup className="p-0">
-          <SidebarGroupLabel className="px-2 text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">
-            Active list
-          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-2">
+            {projects.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-sidebar-border/80 px-3 py-4 text-sm text-sidebar-foreground/60">
+                No projects yet. Add one to get started.
+              </div>
+            ) : null}
+            <SidebarMenu className="gap-1">
               {projects.map((project) => (
                 <SidebarMenuItem key={project.id}>
                   <ContextMenu>
                     <ContextMenuTrigger className="block">
                       <SidebarMenuButton
-                        className={`h-auto flex-col items-start gap-1.5 rounded-[1.05rem] border px-3 py-3 text-sidebar-foreground transition-all hover:border-sidebar-border hover:bg-background/70 ${
+                        className={`h-auto flex-col items-start gap-1 rounded-lg border px-3 py-2.5 text-sidebar-foreground transition-all hover:bg-background/60 ${
                           project.id === selectedProjectId
-                            ? "border-primary/35 bg-primary/12 text-sidebar-foreground shadow-[0_16px_35px_rgba(15,23,42,0.1)] ring-1 ring-primary/18"
+                            ? "border-sidebar-border bg-background/80"
                             : "border-transparent"
                         }`}
                         isActive={project.id === selectedProjectId}
@@ -78,36 +73,18 @@ export function ProjectSidebar() {
                               {project.name}
                             </span>
                             <span className="mt-0.5 block truncate text-[11px] text-sidebar-foreground/58">
-                              {project.path.split("/").slice(-3).join("/")}
+                              {project.path.split("/").slice(-2).join("/")}
                             </span>
                           </div>
                           <span
-                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                            className={`shrink-0 text-[11px] font-medium ${
                               project.id === selectedProjectId
-                                ? "border-primary/30 bg-primary/18 text-sidebar-foreground"
-                                : "border-sidebar-border/80 bg-background/85 text-sidebar-foreground/72"
+                                ? "text-sidebar-foreground"
+                                : "text-sidebar-foreground/60"
                             }`}
                           >
                             {project.tasks}
                           </span>
-                        </div>
-                        <span
-                          className={`w-full truncate font-mono text-[10px] ${
-                            project.id === selectedProjectId
-                              ? "text-sidebar-foreground/68"
-                              : "text-sidebar-foreground/42"
-                          }`}
-                        >
-                          {project.path}
-                        </span>
-                        <div
-                          className={`text-[10px] uppercase tracking-[0.16em] ${
-                            project.id === selectedProjectId
-                              ? "text-sidebar-foreground/70"
-                              : "text-sidebar-foreground/40"
-                          }`}
-                        >
-                          {project.id === selectedProjectId ? "Current project" : "Open task count"}
                         </div>
                       </SidebarMenuButton>
                     </ContextMenuTrigger>
@@ -151,7 +128,7 @@ export function ProjectSidebar() {
               }}
             >
               <Plus className="size-4" />
-              <span>Open Project</span>
+              <span>Add Project</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

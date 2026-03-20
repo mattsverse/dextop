@@ -142,6 +142,22 @@ function statusToneClasses(tone: "neutral" | "active" | "warning" | "success") {
   return "border-border/70 bg-muted/70 text-muted-foreground";
 }
 
+function statusTextClasses(tone: "neutral" | "active" | "warning" | "success") {
+  if (tone === "active") {
+    return "text-[color:var(--status-active-fg)]";
+  }
+
+  if (tone === "warning") {
+    return "text-[color:var(--status-warning-fg)]";
+  }
+
+  if (tone === "success") {
+    return "text-[color:var(--status-success-fg)]";
+  }
+
+  return "text-muted-foreground";
+}
+
 function StatTile({
   label,
   value,
@@ -152,14 +168,11 @@ function StatTile({
   tone?: "neutral" | "active" | "warning" | "success";
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-lg border px-3 py-3",
-        tone === "neutral" ? "border-border/80 bg-panel/85 text-foreground" : statusToneClasses(tone),
-      )}
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-80">{label}</p>
-      <p className="mt-1 text-lg font-semibold tracking-tight">{value}</p>
+    <div className="space-y-1">
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className={cn("text-sm font-semibold tracking-tight text-foreground", statusTextClasses(tone))}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -169,22 +182,22 @@ function SectionCard({
   title,
   description,
   children,
+  headerClassName,
 }: {
   eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
+  headerClassName?: string;
 }) {
   return (
-    <section className="rounded-2xl border border-border/75 bg-panel/88 p-4 shadow-[0_20px_55px_rgba(30,41,59,0.08)] dark:shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
-      <div className="space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          {eyebrow}
-        </p>
+    <section className="space-y-3">
+      <div className={cn("space-y-1", headerClassName)}>
+        <p className="text-[11px] font-medium text-muted-foreground">{eyebrow}</p>
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
-      <div className="mt-4">{children}</div>
+      <div>{children}</div>
     </section>
   );
 }
@@ -197,34 +210,27 @@ export function ProjectBoardHeader({
   onAddTask,
 }: ProjectBoardHeaderProps) {
   return (
-    <section className="rounded-[1.5rem] border border-border/70 bg-panel/92 p-5 shadow-[0_22px_60px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.34)]">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-background/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+    <section className="border-b border-border/70 pb-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
             <KanbanSquare className="size-3.5" />
-            Project Board
+            <span>Board</span>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground">{projectName}</h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Review active work, blockers, and recent changes without leaving the board.
-            </p>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-3xl">
+              {projectName}
+            </h1>
+            <p className="truncate text-sm text-muted-foreground">{formatShortPath(projectPath)}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
-              {formatShortPath(projectPath)}
-            </span>
-            <span className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
-              {totalTasks} tasks tracked
-            </span>
-            <span className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
-              {openTasks} still open
-            </span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>{openTasks} open</span>
+            <span>{totalTasks} total</span>
           </div>
         </div>
 
         <Button
-          className="h-10 rounded-full bg-primary px-5 text-primary-foreground shadow-[0_16px_30px_rgba(58,90,64,0.22)] hover:bg-primary/92"
+          className="h-10 rounded-full px-5"
           onClick={onAddTask}
         >
           <Plus className="size-4" />
@@ -251,41 +257,34 @@ export function BoardSummaryRail({
   ];
 
   return (
-    <section className="rounded-[1.35rem] border border-border/70 bg-panel/84 p-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Total" tone="neutral" value={String(totalTasks)} />
-          <StatTile label="Open" tone="active" value={String(openTasks)} />
-          <StatTile label="Blocked" tone="warning" value={String(blockedTasks)} />
-          <StatTile label="Done" tone="success" value={String(doneTasks)} />
-        </div>
+    <section className="flex flex-col gap-3 border-b border-border/70 pb-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-wrap gap-2">
+        {filters.map((filter) => {
+          const isActive = filter.key === activeFilter;
 
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Quick Filters
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {filters.map((filter) => {
-              const isActive = filter.key === activeFilter;
+          return (
+            <button
+              key={filter.key}
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                isActive
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              onClick={() => onFilterChange(filter.key)}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
 
-              return (
-                <button
-                  key={filter.key}
-                  type="button"
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                    isActive
-                      ? "border-primary/40 bg-primary text-primary-foreground"
-                      : "border-border/70 bg-background/85 text-muted-foreground hover:border-primary/25 hover:bg-panel",
-                  )}
-                  onClick={() => onFilterChange(filter.key)}
-                >
-                  {filter.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <StatTile label="Open" tone="active" value={String(openTasks)} />
+        <StatTile label="Blocked" tone="warning" value={String(blockedTasks)} />
+        <StatTile label="Done" tone="success" value={String(doneTasks)} />
+        <StatTile label="Total" tone="neutral" value={String(totalTasks)} />
       </div>
     </section>
   );
@@ -305,39 +304,24 @@ export function KanbanColumn({
   return (
     <section
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-border/75 bg-panel/88",
-        isCollapsed ? "w-[92px] shrink-0" : "min-w-[292px] flex-1 basis-0",
+        "flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-background/40",
+        isCollapsed ? "w-[88px] shrink-0" : "min-w-[292px] flex-1 basis-0",
       )}
     >
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-panel/95 px-3 py-3 backdrop-blur">
+      <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex size-8 shrink-0 items-center justify-center rounded-full border",
-              statusToneClasses(
-                column.key === "inProgress"
-                  ? "active"
-                  : column.key === "blocked"
-                    ? "warning"
-                    : column.key === "done"
-                      ? "success"
-                      : "neutral",
-              ),
-            )}
-          >
-            <Icon className="size-4" />
-          </span>
+          <Icon className="size-4 shrink-0 text-muted-foreground" />
           {!isCollapsed ? (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{column.label}</p>
-              <p className="text-[11px] text-muted-foreground">{tasks.length} tasks</p>
+              <p className="text-[11px] text-muted-foreground">{tasks.length}</p>
             </div>
           ) : null}
         </div>
 
         <button
           type="button"
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border/75 bg-background/90 text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           onClick={onToggleCollapsed}
           aria-expanded={!isCollapsed}
           aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${column.label} column`}
@@ -349,15 +333,11 @@ export function KanbanColumn({
       {isCollapsed ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-2 py-4 text-center">
           <Icon className="size-5 text-muted-foreground" />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {column.compactLabel}
-          </p>
-          <p className="rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[10px] text-muted-foreground">
-            {tasks.length}
-          </p>
+          <p className="text-[11px] font-medium text-muted-foreground">{column.compactLabel}</p>
+          <p className="text-xs font-semibold text-foreground">{tasks.length}</p>
         </div>
       ) : (
-        <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
+        <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
           {tasks.length > 0 ? (
             tasks.map((task) => (
               <TaskCard
@@ -369,11 +349,9 @@ export function KanbanColumn({
               />
             ))
           ) : (
-            <div className="rounded-2xl border border-dashed border-border/80 bg-background/70 px-4 py-6 text-center">
-              <p className="text-sm font-medium text-foreground">No tasks in this lane</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Work appears here as task state changes.
-              </p>
+            <div className="rounded-lg border border-dashed border-border/70 px-4 py-6 text-center">
+              <p className="text-sm font-medium text-foreground">Nothing here</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Tasks move here as work changes.</p>
             </div>
           )}
         </div>
@@ -394,54 +372,38 @@ function TaskCard({
   getSubtaskProgress: (taskId: string) => { completed: number; total: number } | undefined;
 }) {
   const progress = getSubtaskProgress(task.id);
+  const statusLabel = task.completed
+    ? "Done"
+    : task.blockedBy.length > 0
+      ? "Blocked"
+      : task.startedAt
+        ? "In Progress"
+        : "Todo";
 
   return (
     <button
       type="button"
-      className="w-full rounded-[1.1rem] border border-border/75 bg-background/90 p-4 text-left transition-colors hover:border-primary/25 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      className="w-full rounded-lg border border-border/70 bg-background px-3 py-3 text-left transition-colors hover:border-foreground/15 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       onClick={onOpen}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h4 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground">
-          {task.name}
-        </h4>
-        <span
-          className={cn(
-            "rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
-            statusToneClasses(statusTone),
-          )}
-        >
-          {task.completed
-            ? "Done"
-            : task.blockedBy.length > 0
-              ? "Blocked"
-              : task.startedAt
-                ? "In Progress"
-                : "Todo"}
-        </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+            <span className={cn("font-medium", statusTextClasses(statusTone))}>{statusLabel}</span>
+            {task.priority !== null ? <span className="text-muted-foreground">P{task.priority}</span> : null}
+            {progress ? (
+              <span className="text-muted-foreground">
+                {progress.completed}/{progress.total} subtasks
+              </span>
+            ) : null}
+          </div>
+          <h4 className="mt-1 min-w-0 text-sm font-semibold leading-snug text-foreground">{task.name}</h4>
+        </div>
       </div>
 
       {task.description ? (
-        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-          {task.description}
-        </p>
+        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{task.description}</p>
       ) : null}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {task.priority !== null ? (
-          <span className="rounded-full border border-border/70 bg-panel px-2.5 py-1 text-[10px] font-medium text-foreground">
-            P{task.priority}
-          </span>
-        ) : null}
-        {progress ? (
-          <span className="rounded-full border border-border/70 bg-panel px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-            {progress.completed}/{progress.total} subtasks
-          </span>
-        ) : null}
-        <span className="truncate rounded-full border border-border/70 bg-background px-2.5 py-1 font-mono text-[10px] text-muted-foreground">
-          {task.id}
-        </span>
-      </div>
     </button>
   );
 }
@@ -454,21 +416,18 @@ export function EmptyProjectBoard({
   onAddTask: () => void;
 }) {
   return (
-    <section className="flex flex-1 items-center justify-center rounded-[1.5rem] border border-dashed border-border/80 bg-panel/82 p-8 text-center">
-      <div className="max-w-xl">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-full border border-border/80 bg-background/90">
+    <section className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border/75 p-8 text-center">
+      <div className="max-w-lg">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted/60">
           <FolderSearch className="size-6 text-muted-foreground" />
         </div>
-        <h3 className="mt-5 text-2xl font-semibold tracking-tight text-foreground">
-          Start the board for {projectName}
-        </h3>
+        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">No tasks yet in {projectName}</h3>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Create the first dex task to give this project a live board. You can add structure, assign
-          blockers, and start shaping the workflow from here.
+          Add the first task to start tracking work in this project.
         </p>
         <Button className="mt-6 rounded-full px-5" onClick={onAddTask}>
           <Plus className="size-4" />
-          <span>Create First Task</span>
+          <span>Add First Task</span>
         </Button>
       </div>
     </section>
@@ -482,27 +441,22 @@ export function ProjectBoardPlaceholder({
 }) {
   return (
     <div className="flex h-full items-center justify-center">
-      <section className="w-full max-w-3xl rounded-[1.75rem] border border-border/75 bg-panel/92 px-8 py-10 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] dark:shadow-[0_24px_80px_rgba(2,6,23,0.28)] sm:px-12 sm:py-12">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-border/80 bg-background/92">
+      <section className="w-full max-w-2xl px-8 py-10 text-center sm:px-12 sm:py-12">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted/60">
           <FolderSearch className="size-7 text-muted-foreground" />
         </div>
         {isProjectsInitialized ? (
           <>
-            <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Choose a project to open its board
-            </h2>
+            <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Choose a project</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Pick a project from the sidebar to inspect its current work, review blockers, and create
-              new dex tasks without leaving the app shell.
+              Pick one from the sidebar to scan its tasks at a glance and open details when you need more context.
             </p>
           </>
         ) : (
           <>
-            <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Preparing your workspace
-            </h2>
+            <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Loading projects</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Loading stored projects and task watchers so the board can reflect local dex activity.
+              Loading your saved projects and dex watchers.
             </p>
           </>
         )}
@@ -539,15 +493,9 @@ export function CreateTaskDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="!flex !max-h-[min(88vh,48rem)] !w-[min(92vw,38rem)] !max-w-[38rem] !min-h-0 !flex-col !overflow-hidden !rounded-[1.25rem] !border !border-border/80 !bg-panel !p-0 !text-foreground shadow-[0_24px_72px_rgba(15,23,42,0.16)] dark:shadow-[0_24px_72px_rgba(2,6,23,0.42)]">
         <DialogHeader className="gap-2 border-b border-border/75 px-6 py-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            New Task
-          </p>
-          <DialogTitle className="text-2xl font-semibold tracking-tight text-foreground">
-            Add task to {projectName}
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Capture the intent clearly first, then link it to existing work only when useful.
-          </DialogDescription>
+          <p className="text-[11px] font-medium text-muted-foreground">Add task</p>
+          <DialogTitle className="text-2xl font-semibold tracking-tight text-foreground">Add a task to {projectName}</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">Start with the task itself. Add relationships only when they help.</DialogDescription>
         </DialogHeader>
 
         <form
@@ -558,20 +506,21 @@ export function CreateTaskDialog({
           }}
         >
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
+            <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
               <SectionCard
-                description="Name the work in a way that still makes sense when it appears in a dense board."
+                description="Write a title that still makes sense in a busy board."
                 eyebrow="Core"
-                title="Task Intent"
+                headerClassName="min-h-[5.5rem]"
+                title="Task"
               >
                 <label className="space-y-2 text-sm">
-                  <span className="font-medium text-foreground">Task Name</span>
+                  <span className="font-medium text-foreground">Task Title</span>
                   <Input
                     aria-invalid={nameError ? "true" : undefined}
                     autoFocus
                     disabled={isPending}
                     onChange={(event) => onNameInput(event.currentTarget.value)}
-                    placeholder="Refine kanban summary rail"
+                    placeholder="Tighten board filters"
                     value={form.name}
                   />
                   {nameError ? <p className="text-xs font-medium text-destructive">{nameError}</p> : null}
@@ -579,9 +528,10 @@ export function CreateTaskDialog({
               </SectionCard>
 
               <SectionCard
-                description="Lower numbers are more urgent in dex. Leave the default if you just need standard ordering."
+                description="Lower numbers mean higher priority in dex."
                 eyebrow="Priority"
-                title="Urgency"
+                headerClassName="min-h-[5.5rem]"
+                title="Priority"
               >
                 <label className="space-y-2 text-sm">
                   <span className="font-medium text-foreground">Priority</span>
@@ -597,16 +547,12 @@ export function CreateTaskDialog({
               </SectionCard>
             </div>
 
-            <SectionCard
-              description="Use the description for context, boundaries, and what done should look like."
-              eyebrow="Context"
-              title="Description"
-            >
+            <SectionCard description="Add scope, context, or a definition of done if the title is not enough." eyebrow="Context" title="Description">
               <Textarea
                 className="min-h-28 resize-y"
                 disabled={isPending}
                 onChange={(event) => onFormChange("description", event.currentTarget.value)}
-                placeholder="Add scope, constraints, and what this task should produce."
+                placeholder="What needs to happen, what is in scope, and what done looks like."
                 value={form.description}
               />
             </SectionCard>
@@ -615,8 +561,8 @@ export function CreateTaskDialog({
               <SectionCard
                 description={
                   hasTaskRelationOptions
-                    ? "Attach this under an existing parent when it belongs inside a broader thread of work."
-                    : "Parent linking becomes available once the project already contains tasks."
+                    ? "Link this to a parent task only when it belongs in a larger thread."
+                    : "You can add a parent task after this project has tasks."
                 }
                 eyebrow="Relationships"
                 title="Parent Task"
@@ -631,13 +577,13 @@ export function CreateTaskDialog({
                   >
                     <ComboboxInput
                       disabled={isPending}
-                      placeholder="No parent task"
+                      placeholder="Search for a parent task"
                       showClear
                     />
                     <ComboboxContent>
-                      <ComboboxEmpty>No matching task found.</ComboboxEmpty>
+                      <ComboboxEmpty>No tasks match that search.</ComboboxEmpty>
                       <ComboboxList>
-                        <ComboboxItem value={null}>No parent task</ComboboxItem>
+                        <ComboboxItem value={null}>No parent</ComboboxItem>
                         <ComboboxCollection>
                           {(item: (typeof relationItems)[number]) => (
                             <ComboboxItem key={item.value} value={item}>
@@ -654,15 +600,15 @@ export function CreateTaskDialog({
                     </ComboboxContent>
                   </Combobox>
                 ) : (
-                  <Input disabled placeholder="No parent task" value="" />
+                  <Input disabled placeholder="Add a task first" value="" />
                 )}
               </SectionCard>
 
               <SectionCard
                 description={
                   hasTaskRelationOptions
-                    ? "Mark blocking work so the board reflects dependency pressure immediately."
-                    : "Add the first task before blockers can be assigned."
+                    ? "Add blockers when dependencies affect the work."
+                    : "Add another task before you set blockers."
                 }
                 eyebrow="Relationships"
                 title="Blocked By"
@@ -700,11 +646,11 @@ export function CreateTaskDialog({
                         <ComboboxChipsInput
                           className="text-sm"
                           disabled={isPending}
-                          placeholder={form.blockedBy.length > 0 ? "" : "Search tasks to add blockers"}
+                          placeholder={form.blockedBy.length > 0 ? "" : "Search for blocking tasks"}
                         />
                       </ComboboxChips>
                       <ComboboxContent anchor={blockersAnchorRef}>
-                        <ComboboxEmpty>No matching task found.</ComboboxEmpty>
+                        <ComboboxEmpty>No tasks match that search.</ComboboxEmpty>
                         <ComboboxList>
                           <ComboboxCollection>
                             {(item: (typeof relationItems)[number]) => (
@@ -723,7 +669,7 @@ export function CreateTaskDialog({
                     </Combobox>
                   </div>
                 ) : (
-                  <Input disabled placeholder="No blockers available yet" value="" />
+                  <Input disabled placeholder="Add another task first" value="" />
                 )}
               </SectionCard>
             </div>
@@ -748,7 +694,7 @@ export function CreateTaskDialog({
               </Button>
               <Button className="rounded-full px-5" disabled={isPending} type="submit">
                 <Plus className="size-4" />
-                <span>{isPending ? "Creating..." : "Create Task"}</span>
+                <span>{isPending ? "Adding..." : "Add Task"}</span>
               </Button>
             </div>
           </div>
@@ -776,9 +722,7 @@ export function TaskDetailsDialog({
       <DialogContent className="!flex !max-h-[82vh] !min-h-0 !w-[min(92vw,46rem)] !max-w-[46rem] !flex-col !overflow-hidden !rounded-[1.35rem] !border !border-border/80 !bg-panel !p-0 !text-foreground shadow-[0_28px_84px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_84px_rgba(2,6,23,0.46)]">
         <DialogHeader className="gap-3 border-b border-border/75 px-6 py-5">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Task Details
-            </p>
+            <p className="text-[11px] font-medium text-muted-foreground">Task details</p>
             {selectedTask ? (
               <span
                 className={cn(
@@ -794,7 +738,7 @@ export function TaskDetailsDialog({
             {selectedTask?.name ?? "Unknown task"}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Review status, relationships, and timestamps without losing board context.
+            Review the details without leaving the board.
           </DialogDescription>
         </DialogHeader>
 
@@ -809,22 +753,14 @@ export function TaskDetailsDialog({
               <StatTile label="Task ID" value={selectedTask.id} />
             </div>
 
-            <SectionCard
-              description="Use this space to understand the intent and scope before drilling into relationships."
-              eyebrow="Description"
-              title="Task Context"
-            >
+            <SectionCard description="Use this to understand the task before looking at relationships." eyebrow="Description" title="Task context">
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                {selectedTask.description ?? "No description provided."}
+                {selectedTask.description ?? "No description yet."}
               </p>
             </SectionCard>
 
             <div className="grid gap-4">
-              <SectionCard
-                description="Navigate through parent and child relationships directly from here."
-                eyebrow="Structure"
-                title="Relationships"
-              >
+              <SectionCard description="Open parent and child tasks directly from here." eyebrow="Structure" title="Relationships">
                 <div className="space-y-4 text-sm">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -846,7 +782,7 @@ export function TaskDetailsDialog({
                           </span>
                         )
                       ) : (
-                        <p className="text-muted-foreground">No parent task</p>
+                        <p className="text-muted-foreground">This task has no parent.</p>
                       )}
                     </div>
                   </div>
@@ -869,17 +805,13 @@ export function TaskDetailsDialog({
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-2 text-muted-foreground">No subtasks linked</p>
+                      <p className="mt-2 text-muted-foreground">No subtasks yet.</p>
                     )}
                   </div>
                 </div>
               </SectionCard>
 
-              <SectionCard
-                description="Read blocker relationships as dependency signals rather than raw metadata."
-                eyebrow="Dependencies"
-                title="Blockers"
-              >
+              <SectionCard description="Use blockers to understand what is holding work up." eyebrow="Dependencies" title="Blockers">
                 <div className="space-y-4 text-sm">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -896,7 +828,7 @@ export function TaskDetailsDialog({
                           </span>
                         ))
                       ) : (
-                        <p className="text-muted-foreground">No blockers</p>
+                        <p className="text-muted-foreground">Nothing is blocking this task.</p>
                       )}
                     </div>
                   </div>
@@ -916,7 +848,7 @@ export function TaskDetailsDialog({
                           </span>
                         ))
                       ) : (
-                        <p className="text-muted-foreground">No downstream blockers</p>
+                        <p className="text-muted-foreground">This task is not blocking anything.</p>
                       )}
                     </div>
                   </div>
@@ -925,9 +857,9 @@ export function TaskDetailsDialog({
             </div>
 
             <SectionCard
-              description="These timestamps help explain movement across the board and recent activity."
+              description="Use these timestamps to see when the task moved or changed."
               eyebrow="Timeline"
-              title="Task Lifecycle"
+              title="Timeline"
             >
               <dl className="grid gap-3 text-sm sm:grid-cols-2">
                 {[

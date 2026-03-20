@@ -54,12 +54,8 @@ function RouteComponent() {
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border/75 bg-background/82 px-4 backdrop-blur-xl">
           <SidebarTrigger className="rounded-full border border-border/75 bg-panel text-muted-foreground hover:bg-background hover:text-foreground" />
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              Current Project
-            </p>
-            <p className="truncate text-sm font-semibold text-foreground">
-              {selectedProjectName}
-            </p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Project</p>
+            <p className="truncate text-sm font-semibold text-foreground">{selectedProjectName ?? "Choose a project"}</p>
           </div>
         </header>
         <Outlet />

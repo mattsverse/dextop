@@ -18,7 +18,7 @@ function RootComponent() {
         </main>
       </div>
       <UpdaterNotification />
-      <TanStackRouterDevtools />
+      <TanStackRouterDevtools position="bottom-right" />
     </AppProviders>
   );
 }

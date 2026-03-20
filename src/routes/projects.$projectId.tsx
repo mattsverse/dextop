@@ -94,7 +94,7 @@ function getErrorMessage(error: unknown): string {
     return error;
   }
 
-  return "Something went wrong while creating the task.";
+  return "We couldn't add the task. Try again.";
 }
 
 function RouteComponent() {
@@ -331,13 +331,13 @@ function RouteComponent() {
     }
 
     if (!routeProject) {
-      setCreateTaskError("Select a project before creating a task.");
+      setCreateTaskError("Choose a project before you add a task.");
       return;
     }
 
     const trimmedName = createTaskForm.name.trim();
     if (!trimmedName) {
-      setCreateTaskNameError("Task name is required.");
+      setCreateTaskNameError("Enter a task title.");
       return;
     }
 
@@ -387,9 +387,8 @@ function RouteComponent() {
   }
 
   return (
-    <section className="relative h-[calc(100%-56px)] overflow-hidden p-4 sm:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(110,130,104,0.08),transparent_36%),radial-gradient(circle_at_85%_16%,rgba(138,113,77,0.07),transparent_28%)]" />
-      <div className="relative mx-auto h-full max-w-[1500px]">
+    <section className="h-[calc(100%-56px)] overflow-hidden p-4 sm:p-5">
+      <div className="mx-auto h-full max-w-[1500px]">
         {routeProject ? (
           <div className="flex h-full flex-col gap-4">
             <ProjectBoardHeader
