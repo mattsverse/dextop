@@ -72,19 +72,24 @@ export function TopNavbar() {
   const themeButtonLabel = `Theme: ${currentThemeMeta.label}`;
 
   return (
-    <header className="relative z-40 shrink-0 border-b border-slate-200/80 bg-white/75 px-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
-      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-cyan-300/40 bg-cyan-300/15 text-cyan-800 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200">
+    <header className="relative z-40 shrink-0 border-b border-border/75 bg-background/88 px-4 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border/75 bg-panel text-primary">
             <FolderKanban className="size-4" />
           </div>
-          <span className="truncate text-sm font-semibold uppercase tracking-[0.12em] text-slate-700 dark:text-slate-100">
-            dextop
-          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Dex Workspace
+            </p>
+            <span className="truncate text-base font-semibold tracking-[-0.03em] text-foreground">
+              dextop
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <nav className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <nav className="flex items-center gap-1 rounded-full border border-border/75 bg-panel/90 p-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = isRouteActive(location.pathname, item.to);
@@ -93,10 +98,10 @@ export function TopNavbar() {
                 <Button
                   asChild
                   className={cn(
-                    "rounded-sm border px-2.5 text-xs sm:text-sm",
+                    "rounded-full border px-3 text-xs sm:text-sm",
                     isActive
-                      ? "border-cyan-300/45 bg-cyan-300/18 text-cyan-900 dark:border-cyan-300/35 dark:bg-cyan-400/12 dark:text-cyan-100"
-                      : "border-transparent text-slate-600 hover:border-slate-300/80 hover:bg-slate-100/70 dark:text-slate-300 dark:hover:border-white/10 dark:hover:bg-white/10",
+                      ? "border-border/80 bg-background text-foreground shadow-sm"
+                      : "border-transparent text-muted-foreground hover:bg-background/75 hover:text-foreground",
                   )}
                   size="sm"
                   variant="ghost"
@@ -111,7 +116,7 @@ export function TopNavbar() {
           </nav>
 
           <DropdownMenu onOpenChange={setIsThemeMenuOpen} open={isThemeMenuOpen}>
-            <DropdownMenuTrigger className="inline-flex h-8 shrink-0 select-none items-center justify-center gap-2 rounded-sm border border-slate-300/75 bg-white/85 px-2.5 text-xs text-slate-700 outline-none transition-colors hover:bg-slate-100 focus-visible:border-cyan-400/60 focus-visible:ring-1 focus-visible:ring-cyan-400/60 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10 sm:text-sm">
+            <DropdownMenuTrigger className="inline-flex h-9 shrink-0 select-none items-center justify-center gap-2 rounded-full border border-border/75 bg-panel/90 px-3 text-xs text-muted-foreground outline-none transition-colors hover:bg-background focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:text-sm">
               <span className="hidden sm:inline">{themeButtonLabel}</span>
               <currentThemeMeta.icon className="size-4" />
             </DropdownMenuTrigger>

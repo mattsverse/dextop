@@ -73,40 +73,43 @@ function SettingsRouteComponent() {
 
   return (
     <section className="relative h-full overflow-y-auto p-4 sm:p-6">
-      <div className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(to_right,rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.16)_1px,transparent_1px)] [background-size:28px_28px] dark:opacity-25" />
-      <div className="relative mx-auto w-full max-w-5xl space-y-6 pb-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(110,130,104,0.08),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(138,113,77,0.06),transparent_26%)]" />
+      <div className="relative mx-auto w-full max-w-6xl space-y-6 pb-4">
         <header>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Settings
           </p>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+          <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-foreground">
             App Preferences
           </h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Manage local projects, appearance, and application metadata.
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <section className="rounded-sm border border-slate-300/70 bg-white/80 p-5 shadow-[0_20px_45px_rgba(148,163,184,0.18)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_20px_45px_rgba(2,6,23,0.45)]">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+          <section className="rounded-[1.5rem] border border-border/75 bg-panel/88 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]">
             <div className="flex items-start gap-3">
-              <div className="rounded-sm border border-rose-400/30 bg-rose-500/15 p-2 text-rose-200">
+              <div className="rounded-full border border-destructive/20 bg-destructive/10 p-2 text-destructive">
                 <Trash2 className="size-4" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Stored Projects
+                </p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
                   Stored Projects
                 </h2>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   Remove every saved project reference from dextop.
                 </p>
               </div>
             </div>
-            <p className="mt-4 text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            <p className="mt-5 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               {projects.length} project(s) currently stored
             </p>
             <Button
-              className="mt-3 w-full"
+              className="mt-4 w-full rounded-full"
               disabled={isClearingProjects || projects.length === 0}
               onClick={() => {
                 void handleClearAllProjects();
@@ -117,9 +120,12 @@ function SettingsRouteComponent() {
             </Button>
           </section>
 
-          <section className="rounded-sm border border-slate-300/70 bg-white/80 p-5 shadow-[0_20px_45px_rgba(148,163,184,0.18)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_20px_45px_rgba(2,6,23,0.45)]">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Theme</h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          <section className="rounded-[1.5rem] border border-border/75 bg-panel/88 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Theme
+            </p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">Theme</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Choose how the interface theme should be applied.
             </p>
             <div className="mt-4 space-y-2.5">
@@ -131,33 +137,33 @@ function SettingsRouteComponent() {
                   <button
                     key={option.value}
                     type="button"
-                    className={`flex w-full items-center justify-between rounded-sm border px-3 py-2.5 text-left transition-colors ${
+                    className={`flex w-full items-center justify-between rounded-[1rem] border px-3 py-3 text-left transition-colors ${
                       isActive
-                        ? "border-cyan-400/40 bg-cyan-400/12"
-                        : "border-slate-300/80 bg-white/70 hover:border-cyan-300/40 hover:bg-cyan-300/10 dark:border-white/10 dark:bg-slate-950/70 dark:hover:border-cyan-300/35 dark:hover:bg-cyan-300/10"
+                        ? "border-primary/35 bg-background/90"
+                        : "border-border/75 bg-background/72 hover:border-primary/25 hover:bg-background/92"
                     }`}
                     onClick={() => {
                       setThemePreference(option.value);
                     }}
                   >
                     <span className="flex items-center gap-3">
-                      <span className="rounded-sm border border-slate-300/70 bg-white p-1.5 text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200">
+                      <span className="rounded-full border border-border/75 bg-panel p-2 text-muted-foreground">
                         <Icon className="size-4" />
                       </span>
                       <span>
-                        <span className="block text-sm font-medium text-slate-800 dark:text-slate-100">
+                        <span className="block text-sm font-medium text-foreground">
                           {option.label}
                         </span>
-                        <span className="block text-xs text-slate-500 dark:text-slate-400">
+                        <span className="block text-xs text-muted-foreground">
                           {option.description}
                         </span>
                       </span>
                     </span>
                     <span
-                      className={`rounded-sm border p-1 ${
+                      className={`rounded-full border p-1 ${
                         isActive
-                          ? "border-cyan-300/45 bg-cyan-300/20 text-cyan-200"
-                          : "border-slate-300/70 text-slate-400 dark:border-white/10 dark:text-slate-500"
+                          ? "border-primary/35 bg-primary text-primary-foreground"
+                          : "border-border/75 text-muted-foreground"
                       }`}
                     >
                       <Check className="size-3.5" />
@@ -169,18 +175,23 @@ function SettingsRouteComponent() {
           </section>
         </div>
 
-        <section className="rounded-sm border border-slate-300/70 bg-white/80 p-5 shadow-[0_20px_45px_rgba(148,163,184,0.18)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_20px_45px_rgba(2,6,23,0.45)]">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <section className="rounded-[1.5rem] border border-border/75 bg-panel/88 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Application
+          </p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
             App Information
           </h2>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <InfoTile label="Current Version" value={currentVersion} />
             <InfoTile label="Repository" value="matfire/dextop" />
           </div>
-          <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{updateSummary}</p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {updateSummary}
+          </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-full sm:w-auto"
               disabled={isCheckingForUpdates || isInstalling}
               onClick={() => {
                 requestManualUpdateCheck();
@@ -191,7 +202,7 @@ function SettingsRouteComponent() {
               {isManualCheckInProgress ? "Checking..." : "Check for Updates"}
             </Button>
             <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-full sm:w-auto"
               onClick={() => {
                 void openUrl(GITHUB_REPO_URL);
               }}
@@ -214,11 +225,11 @@ type InfoTileProps = {
 
 function InfoTile({ label, value }: InfoTileProps) {
   return (
-    <div className="rounded-sm border border-slate-300/80 bg-white/75 px-3 py-2.5 dark:border-white/10 dark:bg-slate-950/70">
-      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+    <div className="rounded-[1rem] border border-border/75 bg-background/80 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 font-mono text-sm text-slate-700 dark:text-slate-100">{value}</p>
+      <p className="mt-1 font-mono text-sm text-foreground">{value}</p>
     </div>
   );
 }
