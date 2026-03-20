@@ -1,17 +1,24 @@
-import type { Accessor, JSX } from "solid-js";
-import { createContext, createSignal, onCleanup, onMount, useContext } from "solid-js";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export type ThemePreference = "light" | "dark" | "system";
 
 type ThemeContextValue = {
-  themePreference: Accessor<ThemePreference>;
+  themePreference: ThemePreference;
   setThemePreference: (preference: ThemePreference) => void;
 };
 
 const THEME_STORAGE_KEY = "dextop-theme";
 const THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
-const ThemeContext = createContext<ThemeContextValue>();
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 function isThemePreference(value: string | null): value is ThemePreference {
   return value === "light" || value === "dark" || value === "system";
@@ -22,11 +29,7 @@ function getSystemTheme(): "light" | "dark" {
 }
 
 function resolveTheme(preference: ThemePreference): "light" | "dark" {
-  if (preference === "system") {
-    return getSystemTheme();
-  }
-
-  return preference;
+  return preference === "system" ? getSystemTheme() : preference;
 }
 
 function applyTheme(preference: ThemePreference): void {
@@ -39,11 +42,10 @@ function applyTheme(preference: ThemePreference): void {
   document.documentElement.style.colorScheme = resolvedTheme;
 }
 
-export function ThemeProvider(props: { children: JSX.Element }) {
-  const [themePreferenceState, setThemePreferenceState] = createSignal<ThemePreference>("system");
-  let removeMediaQueryListener: (() => void) | undefined;
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>("system");
 
-  const initializeTheme = () => {
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -58,7 +60,7 @@ export function ThemeProvider(props: { children: JSX.Element }) {
 
     const mediaQuery = window.matchMedia(THEME_MEDIA_QUERY);
     const handleChange = () => {
-      if (themePreferenceState() !== "system") {
+      if (themePreference !== "system") {
         return;
       }
 
@@ -66,12 +68,12 @@ export function ThemeProvider(props: { children: JSX.Element }) {
     };
 
     mediaQuery.addEventListener("change", handleChange);
-    removeMediaQueryListener = () => {
+    return () => {
       mediaQuery.removeEventListener("change", handleChange);
     };
-  };
+  }, [themePreference]);
 
-  const setThemePreference = (preference: ThemePreference) => {
+  const setThemePreference = useCallback((preference: ThemePreference) => {
     setThemePreferenceState(preference);
 
     if (typeof window !== "undefined") {
@@ -79,27 +81,17 @@ export function ThemeProvider(props: { children: JSX.Element }) {
     }
 
     applyTheme(preference);
-  };
+  }, []);
 
-  onMount(() => {
-    initializeTheme();
-  });
-
-  onCleanup(() => {
-    removeMediaQueryListener?.();
-    removeMediaQueryListener = undefined;
-  });
-
-  return (
-    <ThemeContext.Provider
-      value={{
-        themePreference: themePreferenceState,
-        setThemePreference,
-      }}
-    >
-      {props.children}
-    </ThemeContext.Provider>
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      themePreference,
+      setThemePreference,
+    }),
+    [setThemePreference, themePreference],
   );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {

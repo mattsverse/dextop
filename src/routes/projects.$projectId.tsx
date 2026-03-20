@@ -1,16 +1,5 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useProjects } from "@/contexts/projects-context";
-import { useTasks } from "@/contexts/tasks-context";
-import { createProjectTask, DexTask } from "@/lib/tasks-service";
-import { createFileRoute, Navigate } from "@tanstack/solid-router";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronLeft,
@@ -21,8 +10,19 @@ import {
   OctagonAlert,
   PartyPopper,
   Plus,
-} from "lucide-solid";
-import { createMemo, createRenderEffect, createSignal, For, Show } from "solid-js";
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useProjects } from "@/contexts/projects-context";
+import { useTasks } from "@/contexts/tasks-context";
+import { DexTask, createProjectTask } from "@/lib/tasks-service";
 
 export const Route = createFileRoute("/projects/$projectId")({
   component: RouteComponent,
@@ -127,44 +127,42 @@ function getErrorMessage(error: unknown): string {
 }
 
 function RouteComponent() {
-  const params = Route.useParams()();
+  const params = Route.useParams();
   const { isProjectsInitialized, projects, selectProject } = useProjects();
   const { projectTasks } = useTasks();
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = createSignal(false);
-  const [createTaskForm, setCreateTaskForm] = createSignal<CreateTaskFormState>({
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskForm, setCreateTaskForm] = useState<CreateTaskFormState>({
     ...INITIAL_CREATE_TASK_FORM,
   });
-  const [createTaskError, setCreateTaskError] = createSignal<string | null>(null);
-  const [createTaskNameError, setCreateTaskNameError] = createSignal<string | null>(null);
-  const [isCreateTaskPending, setIsCreateTaskPending] = createSignal(false);
-  const [isDetailsOpen, setIsDetailsOpen] = createSignal(false);
-  const [selectedTaskId, setSelectedTaskId] = createSignal<string | null>(null);
-  const [collapsedColumns, setCollapsedColumns] = createSignal<Record<KanbanColumnKey, boolean>>({
+  const [createTaskError, setCreateTaskError] = useState<string | null>(null);
+  const [createTaskNameError, setCreateTaskNameError] = useState<string | null>(null);
+  const [isCreateTaskPending, setIsCreateTaskPending] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<KanbanColumnKey, boolean>>({
     todo: false,
     inProgress: false,
     blocked: false,
     done: false,
   });
 
-  const routeProject = createMemo(() => {
-    return projects().find((project) => project.id === params.projectId) ?? null;
-  });
+  const routeProject = useMemo(
+    () => projects.find((project) => project.id === params.projectId) ?? null,
+    [params.projectId, projects],
+  );
 
-  const shouldRedirectToProjects = createMemo(() => {
-    return isProjectsInitialized() && routeProject() === null;
-  });
+  const shouldRedirectToProjects = isProjectsInitialized && routeProject === null;
 
-  createRenderEffect(() => {
-    const project = routeProject();
-    if (!project) {
+  useEffect(() => {
+    if (!routeProject) {
       return;
     }
 
-    selectProject(project.id);
-  });
+    selectProject(routeProject.id);
+  }, [routeProject, selectProject]);
 
-  const sortedProjectTasks = createMemo(() => {
-    return [...projectTasks()].sort((left, right) => {
+  const sortedProjectTasks = useMemo(() => {
+    return [...projectTasks].sort((left, right) => {
       const updatedAtDiff = toTimestamp(right.updatedAt) - toTimestamp(left.updatedAt);
       if (updatedAtDiff !== 0) {
         return updatedAtDiff;
@@ -177,36 +175,34 @@ function RouteComponent() {
 
       return left.id.localeCompare(right.id);
     });
-  });
+  }, [projectTasks]);
 
-  const groupedTasks = createMemo(() => {
-    const columns: Record<KanbanColumnKey, ReturnType<typeof projectTasks>> = {
+  const groupedTasks = useMemo(() => {
+    const columns: Record<KanbanColumnKey, DexTask[]> = {
       todo: [],
       inProgress: [],
       blocked: [],
       done: [],
     };
 
-    for (const task of sortedProjectTasks()) {
+    for (const task of sortedProjectTasks) {
       columns[getColumnKey(task)].push(task);
     }
 
     return columns;
-  });
+  }, [sortedProjectTasks]);
 
-  const taskById = createMemo(() => {
-    const tasks = sortedProjectTasks();
+  const taskById = useMemo(() => {
     const byId = new Map<string, DexTask>();
-    for (const task of tasks) {
+    for (const task of sortedProjectTasks) {
       byId.set(task.id, task);
     }
     return byId;
-  });
+  }, [sortedProjectTasks]);
 
-  const subtasksByParentId = createMemo(() => {
-    const tasks = sortedProjectTasks();
+  const subtasksByParentId = useMemo(() => {
     const byParentId = new Map<string, DexTask[]>();
-    for (const task of tasks) {
+    for (const task of sortedProjectTasks) {
       if (!task.parentId) {
         continue;
       }
@@ -214,50 +210,48 @@ function RouteComponent() {
       const existing = byParentId.get(task.parentId);
       if (existing) {
         existing.push(task);
-        continue;
+      } else {
+        byParentId.set(task.parentId, [task]);
       }
-
-      byParentId.set(task.parentId, [task]);
     }
     return byParentId;
-  });
+  }, [sortedProjectTasks]);
 
-  const subtaskProgressByTaskId = createMemo(() => {
+  const subtaskProgressByTaskId = useMemo(() => {
     const progressByTaskId = new Map<string, { completed: number; total: number }>();
-    for (const [parentId, subtasks] of subtasksByParentId()) {
+    for (const [parentId, subtasks] of subtasksByParentId) {
       const completed = subtasks.filter((task) => task.completed).length;
       progressByTaskId.set(parentId, { completed, total: subtasks.length });
     }
     return progressByTaskId;
-  });
+  }, [subtasksByParentId]);
 
-  const selectedTask = createMemo(() => {
-    const taskId = selectedTaskId();
-    if (!taskId) {
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) {
       return null;
     }
 
-    return sortedProjectTasks().find((task) => task.id === taskId) ?? null;
-  });
+    return sortedProjectTasks.find((task) => task.id === selectedTaskId) ?? null;
+  }, [selectedTaskId, sortedProjectTasks]);
 
-  const selectedTaskParent = createMemo(() => {
-    const task = selectedTask();
-    if (!task?.parentId) {
+  const selectedTaskParent = useMemo(() => {
+    if (!selectedTask?.parentId) {
       return null;
     }
-    return taskById().get(task.parentId) ?? null;
-  });
 
-  const selectedTaskSubtasks = createMemo(() => {
-    const task = selectedTask();
-    if (!task) {
+    return taskById.get(selectedTask.parentId) ?? null;
+  }, [selectedTask, taskById]);
+
+  const selectedTaskSubtasks = useMemo(() => {
+    if (!selectedTask) {
       return [];
     }
-    return subtasksByParentId().get(task.id) ?? [];
-  });
 
-  const taskRelationOptions = createMemo(() => sortedProjectTasks());
-  const hasTaskRelationOptions = createMemo(() => taskRelationOptions().length > 0);
+    return subtasksByParentId.get(selectedTask.id) ?? [];
+  }, [selectedTask, subtasksByParentId]);
+
+  const taskRelationOptions = sortedProjectTasks;
+  const hasTaskRelationOptions = taskRelationOptions.length > 0;
 
   const resetCreateTaskForm = () => {
     setCreateTaskForm({ ...INITIAL_CREATE_TASK_FORM });
@@ -272,7 +266,7 @@ function RouteComponent() {
   };
 
   const handleCreateTaskOpenChange = (open: boolean) => {
-    if (!open && isCreateTaskPending()) {
+    if (!open && isCreateTaskPending) {
       return;
     }
 
@@ -309,18 +303,16 @@ function RouteComponent() {
   };
 
   const handleCreateTaskSubmit = async () => {
-    if (isCreateTaskPending()) {
+    if (isCreateTaskPending) {
       return;
     }
 
-    const project = routeProject();
-    if (!project) {
+    if (!routeProject) {
       setCreateTaskError("Select a project before creating a task.");
       return;
     }
 
-    const form = createTaskForm();
-    const trimmedName = form.name.trim();
+    const trimmedName = createTaskForm.name.trim();
     if (!trimmedName) {
       setCreateTaskNameError("Task name is required.");
       return;
@@ -331,13 +323,13 @@ function RouteComponent() {
     setIsCreateTaskPending(true);
 
     try {
-      const parsedPriority = Number.parseInt(form.priority.trim(), 10);
-      await createProjectTask(project.path, {
+      const parsedPriority = Number.parseInt(createTaskForm.priority.trim(), 10);
+      await createProjectTask(routeProject.path, {
         name: trimmedName,
-        description: form.description.trim() || null,
+        description: createTaskForm.description.trim() || null,
         priority: Number.isNaN(parsedPriority) ? 1 : parsedPriority,
-        parentId: form.parentId || null,
-        blockedBy: form.blockedBy,
+        parentId: createTaskForm.parentId || null,
+        blockedBy: createTaskForm.blockedBy,
       });
       setIsCreateTaskOpen(false);
       resetCreateTaskForm();
@@ -367,358 +359,332 @@ function RouteComponent() {
     }));
   };
 
-  if (shouldRedirectToProjects()) {
+  if (shouldRedirectToProjects) {
     return <Navigate to="/projects" />;
   }
 
   return (
-    <section class="relative h-[calc(100%-56px)] overflow-hidden p-4 sm:p-6">
-      <div class="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:28px_28px]" />
-      <div class="relative mx-auto h-full max-w-7xl">
-        <Show
-          when={routeProject()}
-          fallback={
-            <div class="flex h-full items-center justify-center">
-              <div class="w-full max-w-3xl rounded-sm border border-slate-300/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(241,245,249,0.75))] p-8 text-center shadow-[0_24px_70px_rgba(148,163,184,0.3)] backdrop-blur-xl dark:border-white/15 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75),rgba(2,6,23,0.6))] dark:shadow-[0_24px_70px_rgba(2,6,23,0.55)] sm:p-12">
-                <Show
-                  fallback={
-                    <>
-                      <h2 class="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
-                        Choose a project to load your board
-                      </h2>
-                      <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
-                        Open a project from the sidebar to start watching{" "}
-                        <code class="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
-                          .dex/tasks.jsonl
-                        </code>
-                        .
-                      </p>
-                    </>
-                  }
-                  when={!isProjectsInitialized()}
-                >
-                  <h2 class="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
-                    Loading project board
-                  </h2>
-                  <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
-                    Loading your stored projects and watching task files.
-                  </p>
-                </Show>
-              </div>
-            </div>
-          }
-        >
-          <div class="flex h-full flex-col gap-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div class="space-y-2">
-                <div class="inline-flex w-fit items-center gap-2 rounded-sm border border-cyan-300/45 bg-cyan-300/20 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-cyan-800 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200">
-                  <KanbanSquare class="size-3.5" />
+    <section className="relative h-[calc(100%-56px)] overflow-hidden p-4 sm:p-6">
+      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:28px_28px]" />
+      <div className="relative mx-auto h-full max-w-7xl">
+        {routeProject ? (
+          <div className="flex h-full flex-col gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-2">
+                <div className="inline-flex w-fit items-center gap-2 rounded-sm border border-cyan-300/45 bg-cyan-300/20 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-cyan-800 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200">
+                  <KanbanSquare className="size-3.5" />
                   Live Kanban
                 </div>
-                <p class="text-sm text-slate-600 dark:text-slate-300">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   Add root tasks, subtasks, and blockers without leaving the board.
                 </p>
               </div>
 
               <Button
-                class="border-cyan-300/45 bg-cyan-400/90 text-slate-950 hover:bg-cyan-300 dark:border-cyan-300/25 dark:bg-cyan-300 dark:hover:bg-cyan-200"
+                className="border-cyan-300/45 bg-cyan-400/90 text-slate-950 hover:bg-cyan-300 dark:border-cyan-300/25 dark:bg-cyan-300 dark:hover:bg-cyan-200"
                 onClick={openCreateTaskDialog}
               >
-                <Plus class="size-4" />
+                <Plus className="size-4" />
                 <span>Add Task</span>
               </Button>
             </div>
 
-            <Show
-              when={projectTasks().length > 0}
-              fallback={
-                <div class="flex flex-1 items-center justify-center rounded-sm border border-slate-300/70 bg-white/75 p-8 text-center dark:border-white/10 dark:bg-slate-900/60">
-                  <div class="max-w-md">
-                    <h3 class="text-xl font-semibold text-slate-900 dark:text-white">
-                      No tasks found
-                    </h3>
-                    <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Create the first dex task for this project instead of waiting for entries in{" "}
-                      <code class="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
-                        .dex/tasks.jsonl
-                      </code>
-                      .
-                    </p>
-                    <Button class="mt-5" onClick={openCreateTaskDialog}>
-                      <Plus class="size-4" />
-                      <span>Create First Task</span>
-                    </Button>
-                  </div>
-                </div>
-              }
-            >
-              <div class="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden pb-2">
-                <For each={KANBAN_COLUMNS}>
-                  {(column) => {
-                    const Icon = column.icon;
-                    const tasksInColumn = () => groupedTasks()[column.key];
-                    const isCollapsed = () => collapsedColumns()[column.key];
+            {projectTasks.length > 0 ? (
+              <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden pb-2">
+                {KANBAN_COLUMNS.map((column) => {
+                  const Icon = column.icon;
+                  const tasksInColumn = groupedTasks[column.key];
+                  const isCollapsed = collapsedColumns[column.key];
 
-                    return (
-                      <section
-                        class={`flex min-h-0 flex-col overflow-hidden rounded-sm border border-slate-300/70 bg-white/80 transition-[width] duration-200 dark:border-white/10 dark:bg-slate-900/70 ${
-                          isCollapsed() ? "w-[88px] shrink-0" : "min-w-[270px] flex-1 basis-0"
-                        }`}
-                      >
-                        <header class="flex items-center justify-between border-b border-slate-300/60 px-3 py-2.5 dark:border-white/10">
-                          <div class="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                            <Icon class="size-4 text-cyan-700 dark:text-cyan-200" />
-                            <Show when={!isCollapsed()}>
-                              <span>{column.label}</span>
-                            </Show>
-                          </div>
-                          <div class="flex items-center gap-1.5">
-                            <span class="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300">
-                              {tasksInColumn().length}
-                            </span>
-                            <button
-                              type="button"
-                              class="inline-flex size-6 items-center justify-center rounded-sm border border-slate-300/80 bg-white/70 text-slate-600 transition-colors hover:border-cyan-300/40 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300 dark:hover:border-cyan-300/35 dark:hover:text-cyan-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-slate-900"
-                              onClick={() => toggleColumnCollapsed(column.key)}
-                              aria-expanded={!isCollapsed()}
-                              aria-label={`${isCollapsed() ? "Expand" : "Collapse"} ${column.label} column`}
-                            >
-                              <Show
-                                when={isCollapsed()}
-                                fallback={<ChevronLeft class="size-3.5" />}
+                  return (
+                    <section
+                      key={column.key}
+                      className={`flex min-h-0 flex-col overflow-hidden rounded-sm border border-slate-300/70 bg-white/80 transition-[width] duration-200 dark:border-white/10 dark:bg-slate-900/70 ${
+                        isCollapsed ? "w-[88px] shrink-0" : "min-w-[270px] flex-1 basis-0"
+                      }`}
+                    >
+                      <header className="flex items-center justify-between border-b border-slate-300/60 px-3 py-2.5 dark:border-white/10">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                          <Icon className="size-4 text-cyan-700 dark:text-cyan-200" />
+                          {!isCollapsed ? <span>{column.label}</span> : null}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                            {tasksInColumn.length}
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex size-6 items-center justify-center rounded-sm border border-slate-300/80 bg-white/70 text-slate-600 transition-colors hover:border-cyan-300/40 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300 dark:hover:border-cyan-300/35 dark:hover:text-cyan-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-slate-900"
+                            onClick={() => toggleColumnCollapsed(column.key)}
+                            aria-expanded={!isCollapsed}
+                            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${column.label} column`}
+                          >
+                            {isCollapsed ? (
+                              <ChevronRight className="size-3.5" />
+                            ) : (
+                              <ChevronLeft className="size-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </header>
+
+                      {isCollapsed ? (
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-2 py-3 text-center">
+                          <Icon className="size-5 text-cyan-700 dark:text-cyan-200" />
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600 dark:text-slate-300">
+                            {column.compactLabel}
+                          </p>
+                          <p className="rounded-sm border border-slate-300/80 bg-slate-100/70 px-2 py-1 text-[10px] font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                            {tasksInColumn.length} tasks
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex-1 space-y-2 overflow-y-auto p-2.5">
+                          {tasksInColumn.map((task) => {
+                            const progress = subtaskProgressByTaskId.get(task.id);
+
+                            return (
+                              <button
+                                key={task.id}
+                                type="button"
+                                className="w-full rounded-sm border border-slate-300/80 bg-white/85 p-3 text-left transition-colors hover:border-cyan-300/40 hover:bg-cyan-100/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:border-white/10 dark:bg-slate-950/80 dark:hover:border-cyan-300/35 dark:hover:bg-slate-900/90 dark:focus-visible:ring-cyan-300/70 dark:focus-visible:ring-offset-slate-900"
+                                onClick={() => openTaskDetails(task.id)}
                               >
-                                <ChevronRight class="size-3.5" />
-                              </Show>
-                            </button>
-                          </div>
-                        </header>
-
-                        <Show
-                          when={!isCollapsed()}
-                          fallback={
-                            <div class="flex flex-1 flex-col items-center justify-center gap-3 px-2 py-3 text-center">
-                              <Icon class="size-5 text-cyan-700 dark:text-cyan-200" />
-                              <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600 dark:text-slate-300">
-                                {column.compactLabel}
-                              </p>
-                              <p class="rounded-sm border border-slate-300/80 bg-slate-100/70 px-2 py-1 text-[10px] font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                                {tasksInColumn().length} tasks
-                              </p>
-                            </div>
-                          }
-                        >
-                          <div class="flex-1 space-y-2 overflow-y-auto p-2.5">
-                            <For each={tasksInColumn()}>
-                              {(task) => (
-                                <button
-                                  type="button"
-                                  class="w-full rounded-sm border border-slate-300/80 bg-white/85 p-3 text-left transition-colors hover:border-cyan-300/40 hover:bg-cyan-100/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:border-white/10 dark:bg-slate-950/80 dark:hover:border-cyan-300/35 dark:hover:bg-slate-900/90 dark:focus-visible:ring-cyan-300/70 dark:focus-visible:ring-offset-slate-900"
-                                  onClick={() => openTaskDetails(task.id)}
-                                >
-                                  <h4 class="line-clamp-2 text-sm font-medium text-slate-900 dark:text-white">
-                                    {task.name}
-                                  </h4>
-                                  <Show when={task.description}>
-                                    <p class="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300/90">
-                                      {task.description}
-                                    </p>
-                                  </Show>
-                                  <div class="mt-3 flex items-center justify-between gap-2">
-                                    <span class="truncate font-mono text-[10px] text-slate-500 dark:text-slate-500">
-                                      {task.id}
-                                    </span>
-                                    <div class="flex items-center gap-1.5">
-                                      <Show when={subtaskProgressByTaskId().get(task.id)}>
-                                        {(progress) => (
-                                          <span class="rounded-sm border border-cyan-300/70 bg-cyan-100/70 px-1.5 py-0.5 text-[10px] text-cyan-800 dark:border-cyan-300/40 dark:bg-cyan-400/10 dark:text-cyan-200">
-                                            {progress().completed}/{progress().total} subtasks
-                                          </span>
-                                        )}
-                                      </Show>
-                                      <Show when={task.priority !== null}>
-                                        <span class="rounded-sm border border-slate-300/80 bg-slate-100/70 px-1.5 py-0.5 text-[10px] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                                          P{task.priority}
-                                        </span>
-                                      </Show>
-                                    </div>
+                                <h4 className="line-clamp-2 text-sm font-medium text-slate-900 dark:text-white">
+                                  {task.name}
+                                </h4>
+                                {task.description ? (
+                                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300/90">
+                                    {task.description}
+                                  </p>
+                                ) : null}
+                                <div className="mt-3 flex items-center justify-between gap-2">
+                                  <span className="truncate font-mono text-[10px] text-slate-500 dark:text-slate-500">
+                                    {task.id}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    {progress ? (
+                                      <span className="rounded-sm border border-cyan-300/70 bg-cyan-100/70 px-1.5 py-0.5 text-[10px] text-cyan-800 dark:border-cyan-300/40 dark:bg-cyan-400/10 dark:text-cyan-200">
+                                        {progress.completed}/{progress.total} subtasks
+                                      </span>
+                                    ) : null}
+                                    {task.priority !== null ? (
+                                      <span className="rounded-sm border border-slate-300/80 bg-slate-100/70 px-1.5 py-0.5 text-[10px] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                                        P{task.priority}
+                                      </span>
+                                    ) : null}
                                   </div>
-                                </button>
-                              )}
-                            </For>
-                          </div>
-                        </Show>
-                      </section>
-                    );
-                  }}
-                </For>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
-            </Show>
+            ) : (
+              <div className="flex flex-1 items-center justify-center rounded-sm border border-slate-300/70 bg-white/75 p-8 text-center dark:border-white/10 dark:bg-slate-900/60">
+                <div className="max-w-md">
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+                    No tasks found
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                    Create the first dex task for this project instead of waiting for entries in{" "}
+                    <code className="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
+                      .dex/tasks.jsonl
+                    </code>
+                    .
+                  </p>
+                  <Button className="mt-5" onClick={openCreateTaskDialog}>
+                    <Plus className="size-4" />
+                    <span>Create First Task</span>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        </Show>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <div className="w-full max-w-3xl rounded-sm border border-slate-300/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(241,245,249,0.75))] p-8 text-center shadow-[0_24px_70px_rgba(148,163,184,0.3)] backdrop-blur-xl dark:border-white/15 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75),rgba(2,6,23,0.6))] dark:shadow-[0_24px_70px_rgba(2,6,23,0.55)] sm:p-12">
+              {isProjectsInitialized ? (
+                <>
+                  <h2 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
+                    Choose a project to load your board
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+                    Open a project from the sidebar to start watching{" "}
+                    <code className="rounded-sm bg-slate-200/70 px-1.5 py-0.5 text-xs dark:bg-white/10">
+                      .dex/tasks.jsonl
+                    </code>
+                    .
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">
+                    Loading project board
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+                    Loading your stored projects and watching task files.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <Dialog onOpenChange={handleCreateTaskOpenChange} open={isCreateTaskOpen()}>
-        <DialogContent class="!w-[min(92vw,46rem)] !max-w-[46rem] !rounded-sm !border !border-slate-300/80 !bg-white !p-0 !text-slate-900 shadow-[0_28px_100px_rgba(148,163,184,0.3)] dark:!border-white/10 dark:!bg-slate-950 dark:!text-slate-100 dark:shadow-[0_28px_100px_rgba(2,6,23,0.8)]">
-          <DialogHeader class="gap-2 border-b border-slate-300/80 bg-[linear-gradient(145deg,rgba(248,250,252,0.95),rgba(240,249,255,0.92))] px-5 py-4 dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(8,47,73,0.45))]">
-            <DialogTitle class="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+      <Dialog onOpenChange={handleCreateTaskOpenChange} open={isCreateTaskOpen}>
+        <DialogContent className="!w-[min(92vw,46rem)] !max-w-[46rem] !rounded-sm !border !border-slate-300/80 !bg-white !p-0 !text-slate-900 shadow-[0_28px_100px_rgba(148,163,184,0.3)] dark:!border-white/10 dark:!bg-slate-950 dark:!text-slate-100 dark:shadow-[0_28px_100px_rgba(2,6,23,0.8)]">
+          <DialogHeader className="gap-2 border-b border-slate-300/80 bg-[linear-gradient(145deg,rgba(248,250,252,0.95),rgba(240,249,255,0.92))] px-5 py-4 dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(8,47,73,0.45))]">
+            <DialogTitle className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
               Add Task
             </DialogTitle>
-            <DialogDescription class="text-sm text-slate-600 dark:text-slate-300">
-              Create a new dex task for {routeProject()?.name ?? "this project"}.
+            <DialogDescription className="text-sm text-slate-600 dark:text-slate-300">
+              Create a new dex task for {routeProject?.name ?? "this project"}.
             </DialogDescription>
           </DialogHeader>
 
           <form
-            class="space-y-5 px-5 py-5 sm:px-6"
+            className="space-y-5 px-5 py-5 sm:px-6"
             onSubmit={(event) => {
               event.preventDefault();
               void handleCreateTaskSubmit();
             }}
           >
-            <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
-              <label class="space-y-2 text-sm">
-                <span class="font-medium text-slate-800 dark:text-slate-100">Task Name</span>
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
+              <label className="space-y-2 text-sm">
+                <span className="font-medium text-slate-800 dark:text-slate-100">Task Name</span>
                 <Input
-                  aria-invalid={createTaskNameError() ? "true" : undefined}
-                  autofocus
-                  disabled={isCreateTaskPending()}
-                  onInput={(event) => {
+                  aria-invalid={createTaskNameError ? "true" : undefined}
+                  autoFocus
+                  disabled={isCreateTaskPending}
+                  onChange={(event) => {
                     updateCreateTaskForm("name", event.currentTarget.value);
-                    if (createTaskNameError()) {
+                    if (createTaskNameError) {
                       setCreateTaskNameError(null);
                     }
                   }}
                   placeholder="Ship the task composer"
-                  value={createTaskForm().name}
+                  value={createTaskForm.name}
                 />
-                <Show when={createTaskNameError()}>
-                  {(message) => (
-                    <p class="text-xs font-medium text-rose-700 dark:text-rose-300">{message()}</p>
-                  )}
-                </Show>
+                {createTaskNameError ? (
+                  <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
+                    {createTaskNameError}
+                  </p>
+                ) : null}
               </label>
 
-              <label class="space-y-2 text-sm">
-                <span class="font-medium text-slate-800 dark:text-slate-100">Priority</span>
+              <label className="space-y-2 text-sm">
+                <span className="font-medium text-slate-800 dark:text-slate-100">Priority</span>
                 <Input
-                  disabled={isCreateTaskPending()}
+                  disabled={isCreateTaskPending}
                   min="1"
-                  onInput={(event) => updateCreateTaskForm("priority", event.currentTarget.value)}
+                  onChange={(event) => updateCreateTaskForm("priority", event.currentTarget.value)}
                   placeholder="1"
                   type="number"
-                  value={createTaskForm().priority}
+                  value={createTaskForm.priority}
                 />
-                <p class="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Lower numbers are more urgent in dex.
                 </p>
               </label>
             </div>
 
-            <label class="block space-y-2 text-sm">
-              <span class="font-medium text-slate-800 dark:text-slate-100">Description</span>
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium text-slate-800 dark:text-slate-100">Description</span>
               <textarea
-                class="z-textarea min-h-28 w-full resize-y outline-none"
-                disabled={isCreateTaskPending()}
-                onInput={(event) => updateCreateTaskForm("description", event.currentTarget.value)}
+                className="z-textarea min-h-28 w-full resize-y outline-none"
+                disabled={isCreateTaskPending}
+                onChange={(event) => updateCreateTaskForm("description", event.currentTarget.value)}
                 placeholder="Add context, scope, and what done looks like."
-                value={createTaskForm().description}
+                value={createTaskForm.description}
               />
             </label>
 
-            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-              <div class="space-y-2 text-sm">
-                <div class="flex items-center justify-between gap-3">
-                  <span class="font-medium text-slate-800 dark:text-slate-100">Parent Task</span>
-                  <span class="text-xs text-slate-500 dark:text-slate-400">Optional</span>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-slate-800 dark:text-slate-100">Parent Task</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Optional</span>
                 </div>
 
-                <div class="relative">
+                <div className="relative">
                   <select
-                    class="z-native-select pr-9"
-                    disabled={isCreateTaskPending() || !hasTaskRelationOptions()}
-                    onChange={(event) =>
-                      updateCreateTaskForm("parentId", event.currentTarget.value)
-                    }
-                    value={createTaskForm().parentId}
+                    className="z-native-select pr-9"
+                    disabled={isCreateTaskPending || !hasTaskRelationOptions}
+                    onChange={(event) => updateCreateTaskForm("parentId", event.currentTarget.value)}
+                    value={createTaskForm.parentId}
                   >
                     <option value="">No parent task</option>
-                    <For each={taskRelationOptions()}>
-                      {(task) => (
-                        <option value={task.id}>
-                          {task.name} ({task.id})
-                        </option>
-                      )}
-                    </For>
+                    {taskRelationOptions.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.name} ({task.id})
+                      </option>
+                    ))}
                   </select>
-                  <ChevronDown class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                 </div>
 
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                  <Show
-                    when={hasTaskRelationOptions()}
-                    fallback="Open relation controls once the project has tasks."
-                  >
-                    Link this task under an existing parent to create a subtask.
-                  </Show>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {hasTaskRelationOptions
+                    ? "Link this task under an existing parent to create a subtask."
+                    : "Open relation controls once the project has tasks."}
                 </p>
               </div>
 
-              <div class="space-y-2 text-sm">
-                <div class="flex items-center justify-between gap-3">
-                  <span class="font-medium text-slate-800 dark:text-slate-100">Blocked By</span>
-                  <span class="text-xs text-slate-500 dark:text-slate-400">
-                    {createTaskForm().blockedBy.length} selected
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-slate-800 dark:text-slate-100">Blocked By</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {createTaskForm.blockedBy.length} selected
                   </span>
                 </div>
 
-                <div class="max-h-48 space-y-2 overflow-y-auto rounded-sm border border-slate-300/80 bg-slate-50/80 p-2.5 dark:border-white/10 dark:bg-slate-900/70">
-                  <Show
-                    when={hasTaskRelationOptions()}
-                    fallback={
-                      <p class="text-xs text-slate-500 dark:text-slate-400">
-                        Add the first task before you can assign blockers.
-                      </p>
-                    }
-                  >
-                    <For each={taskRelationOptions()}>
-                      {(task) => (
-                        <label class="flex cursor-pointer items-start gap-2 rounded-sm border border-transparent px-2 py-1.5 transition-colors hover:border-cyan-300/30 hover:bg-cyan-100/40 dark:hover:border-cyan-300/25 dark:hover:bg-cyan-400/10">
-                          <input
-                            checked={createTaskForm().blockedBy.includes(task.id)}
-                            class="mt-0.5 size-3.5 rounded-none border border-slate-400 text-cyan-700 focus:ring-2 focus:ring-cyan-500/40 dark:border-slate-500 dark:bg-slate-950 dark:text-cyan-200"
-                            disabled={isCreateTaskPending()}
-                            onChange={(event) =>
-                              toggleBlockedByTask(task.id, event.currentTarget.checked)
-                            }
-                            type="checkbox"
-                          />
-                          <div class="min-w-0">
-                            <div class="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                              {task.name}
-                            </div>
-                            <div class="truncate text-[11px] text-slate-500 dark:text-slate-400">
-                              {task.id} • {getTaskStatusLabel(task)}
-                            </div>
+                <div className="max-h-48 space-y-2 overflow-y-auto rounded-sm border border-slate-300/80 bg-slate-50/80 p-2.5 dark:border-white/10 dark:bg-slate-900/70">
+                  {hasTaskRelationOptions ? (
+                    taskRelationOptions.map((task) => (
+                      <label
+                        key={task.id}
+                        className="flex cursor-pointer items-start gap-2 rounded-sm border border-transparent px-2 py-1.5 transition-colors hover:border-cyan-300/30 hover:bg-cyan-100/40 dark:hover:border-cyan-300/25 dark:hover:bg-cyan-400/10"
+                      >
+                        <input
+                          checked={createTaskForm.blockedBy.includes(task.id)}
+                          className="mt-0.5 size-3.5 rounded-none border border-slate-400 text-cyan-700 focus:ring-2 focus:ring-cyan-500/40 dark:border-slate-500 dark:bg-slate-950 dark:text-cyan-200"
+                          disabled={isCreateTaskPending}
+                          onChange={(event) => toggleBlockedByTask(task.id, event.currentTarget.checked)}
+                          type="checkbox"
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                            {task.name}
                           </div>
-                        </label>
-                      )}
-                    </For>
-                  </Show>
+                          <div className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                            {task.id} • {getTaskStatusLabel(task)}
+                          </div>
+                        </div>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Add the first task before you can assign blockers.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
-            <Show when={createTaskError()}>
-              {(message) => (
-                <div class="rounded-sm border border-rose-300/70 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
-                  {message()}
-                </div>
-              )}
-            </Show>
+            {createTaskError ? (
+              <div className="rounded-sm border border-rose-300/70 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+                {createTaskError}
+              </div>
+            ) : null}
 
-            <div class="flex flex-col-reverse gap-2 border-t border-slate-300/80 pt-4 sm:flex-row sm:justify-end dark:border-white/10">
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-300/80 pt-4 sm:flex-row sm:justify-end dark:border-white/10">
               <Button
-                disabled={isCreateTaskPending()}
+                disabled={isCreateTaskPending}
                 onClick={() => handleCreateTaskOpenChange(false)}
                 type="button"
                 variant="outline"
@@ -726,222 +692,206 @@ function RouteComponent() {
                 Cancel
               </Button>
               <Button
-                class="bg-cyan-400 text-slate-950 hover:bg-cyan-300 dark:bg-cyan-300 dark:hover:bg-cyan-200"
-                disabled={isCreateTaskPending()}
+                className="bg-cyan-400 text-slate-950 hover:bg-cyan-300 dark:bg-cyan-300 dark:hover:bg-cyan-200"
+                disabled={isCreateTaskPending}
                 type="submit"
               >
-                <Plus class="size-4" />
-                <span>{isCreateTaskPending() ? "Creating..." : "Create Task"}</span>
+                <Plus className="size-4" />
+                <span>{isCreateTaskPending ? "Creating..." : "Create Task"}</span>
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isDetailsOpen()} onOpenChange={handleDetailsOpenChange}>
-        <DialogContent class="!flex !max-h-[85vh] !min-h-0 !w-[min(92vw,56rem)] !max-w-[56rem] !flex-col !overflow-hidden !rounded-xl !border !border-slate-300/80 !bg-white !p-0 !text-slate-900 shadow-[0_30px_100px_rgba(148,163,184,0.32)] dark:!border-slate-700/70 dark:!bg-slate-950 dark:!text-slate-100 dark:shadow-[0_30px_100px_rgba(2,6,23,0.75)]">
-          <DialogHeader class="gap-2 border-b border-slate-300/80 bg-[linear-gradient(145deg,rgba(248,250,252,0.95),rgba(241,245,249,0.9))] px-5 py-4 dark:border-slate-800 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.9),rgba(2,6,23,0.8))] sm:px-6">
-            <DialogTitle class="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+      <Dialog onOpenChange={handleDetailsOpenChange} open={isDetailsOpen}>
+        <DialogContent className="!flex !max-h-[85vh] !min-h-0 !w-[min(92vw,56rem)] !max-w-[56rem] !flex-col !overflow-hidden !rounded-xl !border !border-slate-300/80 !bg-white !p-0 !text-slate-900 shadow-[0_30px_100px_rgba(148,163,184,0.32)] dark:!border-slate-700/70 dark:!bg-slate-950 dark:!text-slate-100 dark:shadow-[0_30px_100px_rgba(2,6,23,0.75)]">
+          <DialogHeader className="gap-2 border-b border-slate-300/80 bg-[linear-gradient(145deg,rgba(248,250,252,0.95),rgba(241,245,249,0.9))] px-5 py-4 dark:border-slate-800 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.9),rgba(2,6,23,0.8))] sm:px-6">
+            <DialogTitle className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
               Task Details
             </DialogTitle>
-            <p class="text-sm text-slate-700 dark:text-slate-200">
-              {selectedTask()?.name ?? "Unknown task"}
+            <p className="text-sm text-slate-700 dark:text-slate-200">
+              {selectedTask?.name ?? "Unknown task"}
             </p>
-            <DialogDescription class="text-xs text-slate-500 dark:text-slate-400">
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
               Full details for the selected kanban card.
             </DialogDescription>
           </DialogHeader>
 
-          <Show
-            when={selectedTask()}
-            fallback={
-              <p class="m-5 rounded-lg border border-amber-300/50 bg-amber-100/70 px-3 py-2 text-sm text-amber-800 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-100 sm:m-6">
-                This task is no longer available.
-              </p>
-            }
-          >
-            {(task) => (
-              <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-                <section class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-4 dark:border-slate-800/90 dark:bg-slate-900/45">
-                  <h3 class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                    Description
-                  </h3>
-                  <p class="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-                    {task().description ?? "No description provided."}
-                  </p>
-                </section>
+          {selectedTask ? (
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              <section className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-4 dark:border-slate-800/90 dark:bg-slate-900/45">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                  Description
+                </h3>
+                <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                  {selectedTask.description ?? "No description provided."}
+                </p>
+              </section>
 
-                <dl class="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Status
-                    </dt>
-                    <dd class="mt-1 font-medium text-slate-800 dark:text-slate-100">
-                      {getTaskStatusLabel(task())}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Priority
-                    </dt>
-                    <dd class="mt-1 font-medium text-slate-800 dark:text-slate-100">
-                      {task().priority === null ? "Not set" : `P${task().priority}`}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Completed
-                    </dt>
-                    <dd class="mt-1 font-medium text-slate-800 dark:text-slate-100">
-                      {task().completed ? "Yes" : "No"}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Task ID
-                    </dt>
-                    <dd class="mt-1 font-mono text-xs text-slate-700 dark:text-slate-200">
-                      {task().id}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Parent Task
-                    </dt>
-                    <dd class="mt-1">
-                      <Show
-                        when={task().parentId}
-                        fallback={
-                          <span class="text-sm font-medium text-slate-800 dark:text-slate-100">
-                            None
-                          </span>
-                        }
-                      >
-                        <Show
-                          when={selectedTaskParent()}
-                          fallback={
-                            <span class="font-mono text-xs text-slate-700 dark:text-slate-200">
-                              {task().parentId}
-                            </span>
-                          }
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Status
+                  </dt>
+                  <dd className="mt-1 font-medium text-slate-800 dark:text-slate-100">
+                    {getTaskStatusLabel(selectedTask)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Priority
+                  </dt>
+                  <dd className="mt-1 font-medium text-slate-800 dark:text-slate-100">
+                    {selectedTask.priority === null ? "Not set" : `P${selectedTask.priority}`}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Completed
+                  </dt>
+                  <dd className="mt-1 font-medium text-slate-800 dark:text-slate-100">
+                    {selectedTask.completed ? "Yes" : "No"}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Task ID
+                  </dt>
+                  <dd className="mt-1 font-mono text-xs text-slate-700 dark:text-slate-200">
+                    {selectedTask.id}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Parent Task
+                  </dt>
+                  <dd className="mt-1">
+                    {selectedTask.parentId ? (
+                      selectedTaskParent ? (
+                        <button
+                          type="button"
+                          className="text-left text-sm font-medium text-cyan-800 underline decoration-cyan-500/60 underline-offset-2 transition-colors hover:text-cyan-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:text-cyan-200 dark:decoration-cyan-300/70 dark:hover:text-cyan-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-slate-900"
+                          onClick={() => openTaskDetails(selectedTaskParent.id)}
                         >
-                          {(parentTask) => (
-                            <button
-                              type="button"
-                              class="text-left text-sm font-medium text-cyan-800 underline decoration-cyan-500/60 underline-offset-2 transition-colors hover:text-cyan-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:text-cyan-200 dark:decoration-cyan-300/70 dark:hover:text-cyan-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-slate-900"
-                              onClick={() => openTaskDetails(parentTask().id)}
-                            >
-                              {parentTask().name}
-                            </button>
-                          )}
-                        </Show>
-                      </Show>
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Started At
-                    </dt>
-                    <dd class="mt-1 text-slate-800 dark:text-slate-100">
-                      {formatTaskDate(task().startedAt)}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Completed At
-                    </dt>
-                    <dd class="mt-1 text-slate-800 dark:text-slate-100">
-                      {formatTaskDate(task().completedAt)}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Created At
-                    </dt>
-                    <dd class="mt-1 text-slate-800 dark:text-slate-100">
-                      {formatTaskDate(task().createdAt)}
-                    </dd>
-                  </div>
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <dt class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Updated At
-                    </dt>
-                    <dd class="mt-1 text-slate-800 dark:text-slate-100">
-                      {formatTaskDate(task().updatedAt)}
-                    </dd>
-                  </div>
-                </dl>
+                          {selectedTaskParent.name}
+                        </button>
+                      ) : (
+                        <span className="font-mono text-xs text-slate-700 dark:text-slate-200">
+                          {selectedTask.parentId}
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                        None
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Started At
+                  </dt>
+                  <dd className="mt-1 text-slate-800 dark:text-slate-100">
+                    {formatTaskDate(selectedTask.startedAt)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Completed At
+                  </dt>
+                  <dd className="mt-1 text-slate-800 dark:text-slate-100">
+                    {formatTaskDate(selectedTask.completedAt)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Created At
+                  </dt>
+                  <dd className="mt-1 text-slate-800 dark:text-slate-100">
+                    {formatTaskDate(selectedTask.createdAt)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Updated At
+                  </dt>
+                  <dd className="mt-1 text-slate-800 dark:text-slate-100">
+                    {formatTaskDate(selectedTask.updatedAt)}
+                  </dd>
+                </div>
+              </dl>
 
-                <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                  <p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                    Subtasks
+              <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                  Subtasks
+                </p>
+                {selectedTaskSubtasks.length > 0 ? (
+                  <ul className="mt-2 space-y-1.5">
+                    {selectedTaskSubtasks.map((subtask) => (
+                      <li key={subtask.id}>
+                        <button
+                          type="button"
+                          className="text-left text-sm font-medium text-cyan-800 underline decoration-cyan-500/60 underline-offset-2 transition-colors hover:text-cyan-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:text-cyan-200 dark:decoration-cyan-300/70 dark:hover:text-cyan-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-slate-900"
+                          onClick={() => openTaskDetails(subtask.id)}
+                        >
+                          {subtask.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">None</p>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Blocked By
                   </p>
-                  <Show
-                    when={selectedTaskSubtasks().length > 0}
-                    fallback={<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">None</p>}
-                  >
-                    <ul class="mt-2 space-y-1.5">
-                      <For each={selectedTaskSubtasks()}>
-                        {(subtask) => (
-                          <li>
-                            <button
-                              type="button"
-                              class="text-left text-sm font-medium text-cyan-800 underline decoration-cyan-500/60 underline-offset-2 transition-colors hover:text-cyan-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:text-cyan-200 dark:decoration-cyan-300/70 dark:hover:text-cyan-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-slate-900"
-                              onClick={() => openTaskDetails(subtask.id)}
-                            >
-                              {subtask.name}
-                            </button>
-                          </li>
-                        )}
-                      </For>
-                    </ul>
-                  </Show>
+                  {selectedTask.blockedBy.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {selectedTask.blockedBy.map((taskId) => (
+                        <span
+                          key={taskId}
+                          className="rounded-md border border-slate-300 bg-white/85 px-2 py-1 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                        >
+                          {taskId}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">None</p>
+                  )}
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2">
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Blocked By
-                    </p>
-                    <Show
-                      when={task().blockedBy.length > 0}
-                      fallback={<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">None</p>}
-                    >
-                      <div class="mt-2 flex flex-wrap gap-1.5">
-                        <For each={task().blockedBy}>
-                          {(taskId) => (
-                            <span class="rounded-md border border-slate-300 bg-white/85 px-2 py-1 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                              {taskId}
-                            </span>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
-                  </div>
-
-                  <div class="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
-                    <p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Blocks
-                    </p>
-                    <Show
-                      when={task().blocks.length > 0}
-                      fallback={<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">None</p>}
-                    >
-                      <div class="mt-2 flex flex-wrap gap-1.5">
-                        <For each={task().blocks}>
-                          {(taskId) => (
-                            <span class="rounded-md border border-slate-300 bg-white/85 px-2 py-1 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                              {taskId}
-                            </span>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
-                  </div>
+                <div className="rounded-lg border border-slate-300/80 bg-slate-100/70 p-3 dark:border-slate-800/90 dark:bg-slate-900/45">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Blocks
+                  </p>
+                  {selectedTask.blocks.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {selectedTask.blocks.map((taskId) => (
+                        <span
+                          key={taskId}
+                          className="rounded-md border border-slate-300 bg-white/85 px-2 py-1 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                        >
+                          {taskId}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">None</p>
+                  )}
                 </div>
               </div>
-            )}
-          </Show>
+            </div>
+          ) : (
+            <p className="m-5 rounded-lg border border-amber-300/50 bg-amber-100/70 px-3 py-2 text-sm text-amber-800 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-100 sm:m-6">
+              This task is no longer available.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </section>

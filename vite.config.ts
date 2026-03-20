@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
+import react from "@vitejs/plugin-react";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { devtools } from "@tanstack/devtools-vite";
+import packageJson from "./package.json";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -12,14 +13,17 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [
     devtools(),
-    tanstackRouter({ target: "solid", autoCodeSplitting: true }),
-    solid(),
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    react(),
     tailwindcss(),
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

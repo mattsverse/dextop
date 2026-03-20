@@ -1,155 +1,135 @@
-import * as SheetPrimitive from "@kobalte/core/dialog";
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import { X } from "lucide-solid";
-import type { Component, ComponentProps, ValidComponent } from "solid-js";
-import { mergeProps, Show, splitProps } from "solid-js";
-import { cn } from "@/lib/utils";
-import { Button } from "./button";
+"use client"
 
-const Sheet: Component<SheetPrimitive.DialogRootProps> = (props) => {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />;
-};
+import * as React from "react"
+import { XIcon } from "lucide-react"
+import { Dialog as SheetPrimitive } from "radix-ui"
 
-type SheetTriggerProps<T extends ValidComponent = "button"> = PolymorphicProps<
-  T,
-  SheetPrimitive.DialogTriggerProps<T>
->;
+import { cn } from "@/lib/utils"
 
-const SheetTrigger = <T extends ValidComponent = "button">(props: SheetTriggerProps<T>) => {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
-};
+function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+}
 
-type SheetCloseProps<T extends ValidComponent = "button"> = PolymorphicProps<
-  T,
-  SheetPrimitive.DialogCloseButtonProps<T>
->;
+function SheetTrigger({
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
+  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
+}
 
-const SheetClose = <T extends ValidComponent = "button">(props: SheetCloseProps<T>) => {
-  return <SheetPrimitive.CloseButton data-slot="sheet-close" {...props} />;
-};
+function SheetClose({
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Close>) {
+  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
+}
 
-const SheetPortal = (props: SheetPrimitive.DialogPortalProps) => {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
-};
+function SheetPortal({
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+}
 
-type SheetOverlayProps<T extends ValidComponent = "div"> = PolymorphicProps<
-  T,
-  SheetPrimitive.DialogOverlayProps<T>
-> &
-  Pick<ComponentProps<T>, "class">;
-
-const SheetOverlay = <T extends ValidComponent = "div">(props: SheetOverlayProps<T>) => {
-  const [local, others] = splitProps(props as SheetOverlayProps, ["class"]);
+function SheetOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
   return (
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
-      class={cn("fixed inset-0 z-50 z-sheet-overlay", local.class)}
-      {...others}
+      className={cn(
+        "fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        className
+      )}
+      {...props}
     />
-  );
-};
+  )
+}
 
-type SheetContentProps<T extends ValidComponent = "div"> = PolymorphicProps<
-  T,
-  SheetPrimitive.DialogContentProps<T>
-> &
-  Pick<ComponentProps<T>, "class" | "children"> & {
-    side?: "top" | "right" | "bottom" | "left";
-    showCloseButton?: boolean;
-  };
-
-const SheetContent = <T extends ValidComponent = "div">(props: SheetContentProps<T>) => {
-  const mergedProps = mergeProps(
-    { side: "right", showCloseButton: true } as SheetContentProps,
-    props,
-  );
-  const [local, others] = splitProps(mergedProps, ["class", "children", "side", "showCloseButton"]);
+function SheetContent({
+  className,
+  children,
+  side = "right",
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Content> & {
+  side?: "top" | "right" | "bottom" | "left"
+  showCloseButton?: boolean
+}) {
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
-        data-side={local.side}
-        class={cn("z-sheet-content", local.class)}
-        {...others}
+        className={cn(
+          "fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
+          side === "right" &&
+            "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+          side === "left" &&
+            "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+          side === "top" &&
+            "inset-x-0 top-0 h-auto border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+          side === "bottom" &&
+            "inset-x-0 bottom-0 h-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          className
+        )}
+        {...props}
       >
-        {local.children}
-        <Show when={local.showCloseButton}>
-          <SheetPrimitive.CloseButton
-            as={Button}
-            variant="ghost"
-            size="icon-sm"
-            data-slot="sheet-close"
-            class="z-sheet-close"
-          >
-            <X />
-            <span class="sr-only">Close</span>
-          </SheetPrimitive.CloseButton>
-        </Show>
+        {children}
+        {showCloseButton && (
+          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        )}
       </SheetPrimitive.Content>
     </SheetPortal>
-  );
-};
+  )
+}
 
-type SheetHeaderProps = ComponentProps<"div">;
-
-const SheetHeader = (props: SheetHeaderProps) => {
-  const [local, others] = splitProps(props, ["class"]);
+function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      class={cn("z-sheet-header flex flex-col", local.class)}
-      {...others}
+      className={cn("flex flex-col gap-1.5 p-4", className)}
+      {...props}
     />
-  );
-};
+  )
+}
 
-type SheetFooterProps = ComponentProps<"div">;
-
-const SheetFooter = (props: SheetFooterProps) => {
-  const [local, others] = splitProps(props, ["class"]);
+function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
-      class={cn("z-sheet-footer mt-auto flex flex-col", local.class)}
-      {...others}
+      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      {...props}
     />
-  );
-};
+  )
+}
 
-type SheetTitleProps<T extends ValidComponent = "h2"> = PolymorphicProps<
-  T,
-  SheetPrimitive.DialogTitleProps<T>
-> &
-  Pick<ComponentProps<T>, "class">;
-
-const SheetTitle = <T extends ValidComponent = "h2">(props: SheetTitleProps<T>) => {
-  const [local, others] = splitProps(props as SheetTitleProps, ["class"]);
+function SheetTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Title>) {
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      class={cn("z-sheet-title", local.class)}
-      {...others}
+      className={cn("font-semibold text-foreground", className)}
+      {...props}
     />
-  );
-};
+  )
+}
 
-type SheetDescriptionProps<T extends ValidComponent = "p"> = PolymorphicProps<
-  T,
-  SheetPrimitive.DialogDescriptionProps<T>
-> &
-  Pick<ComponentProps<T>, "class">;
-
-const SheetDescription = <T extends ValidComponent = "p">(props: SheetDescriptionProps<T>) => {
-  const [local, others] = splitProps(props as SheetDescriptionProps, ["class"]);
+function SheetDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Description>) {
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      class={cn("z-sheet-description", local.class)}
-      {...others}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
     />
-  );
-};
+  )
+}
 
 export {
   Sheet,
@@ -160,4 +140,4 @@ export {
   SheetFooter,
   SheetTitle,
   SheetDescription,
-};
+}

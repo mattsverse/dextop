@@ -1,18 +1,19 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import * as React from "react"
 
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = 768
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = createSignal(false);
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
-  onMount(() => {
-    const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const update = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const onChange = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    }
+    mql.addEventListener("change", onChange)
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
 
-    update();
-    mediaQuery.addEventListener("change", update);
-    onCleanup(() => mediaQuery.removeEventListener("change", update));
-  });
-
-  return isMobile;
+  return !!isMobile
 }

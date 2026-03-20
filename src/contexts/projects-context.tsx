@@ -1,5 +1,12 @@
-import type { Accessor, JSX } from "solid-js";
-import { createContext, createSignal, useContext } from "solid-js";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   clearProjects as clearProjectsRequest,
   deleteProject as deleteProjectRequest,
@@ -11,10 +18,10 @@ import {
 } from "@/lib/projects-service";
 
 type ProjectsContextValue = {
-  projects: Accessor<ProjectItem[]>;
-  isProjectsInitialized: Accessor<boolean>;
-  selectedProjectId: Accessor<string | null>;
-  selectedProjectName: () => string;
+  projects: ProjectItem[];
+  isProjectsInitialized: boolean;
+  selectedProjectId: string | null;
+  selectedProjectName: string;
   selectProject: (projectId: string) => void;
   setProjectTaskCount: (projectPath: string, taskCount: number) => void;
   reloadProjects: () => Promise<void>;
@@ -26,115 +33,110 @@ type ProjectsContextValue = {
   disposeProjectsStore: () => void;
 };
 
-const ProjectsContext = createContext<ProjectsContextValue>();
+const ProjectsContext = createContext<ProjectsContextValue | undefined>(undefined);
 
-export function ProjectsProvider(props: { children: JSX.Element }) {
-  const [projectsState, setProjectsState] = createSignal<ProjectItem[]>([]);
-  const [isProjectsInitializedState, setIsProjectsInitializedState] = createSignal(false);
-  const [selectedProjectIdState, setSelectedProjectIdState] = createSignal<string | null>(null);
+export function ProjectsProvider({ children }: { children: ReactNode }) {
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [isProjectsInitialized, setIsProjectsInitialized] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  let unlistenProjectMutations: (() => void) | undefined;
-  let initializationPromise: Promise<void> | undefined;
-  let isInitialized = false;
+  const unlistenProjectMutationsRef = useRef<(() => void) | undefined>(undefined);
+  const initializationPromiseRef = useRef<Promise<void> | undefined>(undefined);
+  const isInitializedRef = useRef(false);
 
-  const selectedProjectName = () => {
-    const selectedId = selectedProjectIdState();
-    return (
-      projectsState().find((project) => project.id === selectedId)?.name ?? "No project selected"
-    );
-  };
-
-  const ensureSelection = (projectList: ProjectItem[]) => {
-    setSelectedProjectIdState((currentSelection) => {
+  const ensureSelection = useCallback((projectList: ProjectItem[]) => {
+    setSelectedProjectId((currentSelection) => {
       if (currentSelection && projectList.some((project) => project.id === currentSelection)) {
         return currentSelection;
       }
 
       return projectList[0]?.id ?? null;
     });
-  };
+  }, []);
 
-  const reloadProjects = async () => {
+  const reloadProjects = useCallback(async () => {
     const loadedProjects = await listProjects();
-    let nextProjects: ProjectItem[] = [];
-    setProjectsState((currentProjects) => {
+
+    setProjects((currentProjects) => {
       const taskCountsByPath = new Map(
         currentProjects.map((project) => [project.path, project.tasks] as const),
       );
-      nextProjects = loadedProjects.map((project) => ({
+
+      const nextProjects = loadedProjects.map((project) => ({
         ...project,
         tasks: taskCountsByPath.get(project.path) ?? project.tasks,
       }));
+
+      ensureSelection(nextProjects);
       return nextProjects;
     });
-    ensureSelection(nextProjects);
-  };
+  }, [ensureSelection]);
 
-  const selectProject = (projectId: string) => {
-    setSelectedProjectIdState(projectId);
-  };
+  const selectProject = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId);
+  }, []);
 
-  const setProjectTaskCount = (projectPath: string, taskCount: number) => {
-    setProjectsState((currentProjects) =>
+  const setProjectTaskCount = useCallback((projectPath: string, taskCount: number) => {
+    setProjects((currentProjects) =>
       currentProjects.map((project) =>
         project.path === projectPath ? { ...project, tasks: taskCount } : project,
       ),
     );
-  };
+  }, []);
 
-  const openProject = async () => {
+  const openProject = useCallback(async () => {
     try {
       await openProjectRequest();
     } catch (error) {
       console.error("Failed to add project", error);
     }
-  };
+  }, []);
 
-  const deleteProject = async (projectId: string) => {
+  const deleteProject = useCallback(async (projectId: string) => {
     try {
       await deleteProjectRequest(projectId);
     } catch (error) {
       console.error("Failed to delete project", error);
     }
-  };
+  }, []);
 
-  const openProjectInSeparateWindow = async (projectId: string) => {
+  const openProjectInSeparateWindow = useCallback(async (projectId: string) => {
     try {
       await openProjectWindowRequest(projectId);
     } catch (error) {
       console.error("Failed to open project in a separate window", error);
     }
-  };
+  }, []);
 
-  const clearAllProjects = async () => {
+  const clearAllProjects = useCallback(async () => {
     try {
       await clearProjectsRequest();
       await reloadProjects();
     } catch (error) {
       console.error("Failed to clear projects", error);
     }
-  };
+  }, [reloadProjects]);
 
-  const initializeProjectsStore = async () => {
-    if (isInitialized) {
+  const initializeProjectsStore = useCallback(async () => {
+    if (isInitializedRef.current) {
       return;
     }
 
-    if (initializationPromise) {
-      return initializationPromise;
+    if (initializationPromiseRef.current) {
+      return initializationPromiseRef.current;
     }
 
-    initializationPromise = (async () => {
+    initializationPromiseRef.current = (async () => {
       await reloadProjects();
-      unlistenProjectMutations = await listenToProjectMutations({
+      unlistenProjectMutationsRef.current = await listenToProjectMutations({
         onProjectAdded: (project) => {
-          setProjectsState((currentProjects) => {
+          setProjects((currentProjects) => {
             const existingProject = currentProjects.find(
               (currentProject) =>
                 currentProject.id === project.id || currentProject.path === project.path,
             );
 
-            return [
+            const nextProjects = [
               {
                 ...project,
                 tasks: existingProject?.tasks ?? project.tasks,
@@ -144,57 +146,77 @@ export function ProjectsProvider(props: { children: JSX.Element }) {
                   currentProject.id !== project.id && currentProject.path !== project.path,
               ),
             ];
+
+            ensureSelection(nextProjects);
+            return nextProjects;
           });
         },
         onProjectDeleted: (projectId) => {
-          let remainingProjects: ProjectItem[] = [];
-          setProjectsState((currentProjects) => {
-            remainingProjects = currentProjects.filter((project) => project.id !== projectId);
+          setProjects((currentProjects) => {
+            const remainingProjects = currentProjects.filter((project) => project.id !== projectId);
+            ensureSelection(remainingProjects);
             return remainingProjects;
           });
-          ensureSelection(remainingProjects);
         },
       });
-      isInitialized = true;
-      setIsProjectsInitializedState(true);
+      isInitializedRef.current = true;
+      setIsProjectsInitialized(true);
     })();
 
     try {
-      await initializationPromise;
+      await initializationPromiseRef.current;
     } finally {
-      initializationPromise = undefined;
+      initializationPromiseRef.current = undefined;
     }
-  };
+  }, [ensureSelection, reloadProjects]);
 
-  const disposeProjectsStore = () => {
-    unlistenProjectMutations?.();
-    unlistenProjectMutations = undefined;
-    initializationPromise = undefined;
-    isInitialized = false;
-    setIsProjectsInitializedState(false);
-  };
+  const disposeProjectsStore = useCallback(() => {
+    unlistenProjectMutationsRef.current?.();
+    unlistenProjectMutationsRef.current = undefined;
+    initializationPromiseRef.current = undefined;
+    isInitializedRef.current = false;
+    setIsProjectsInitialized(false);
+  }, []);
 
-  return (
-    <ProjectsContext.Provider
-      value={{
-        projects: projectsState,
-        isProjectsInitialized: isProjectsInitializedState,
-        selectedProjectId: selectedProjectIdState,
-        selectedProjectName,
-        selectProject,
-        setProjectTaskCount,
-        reloadProjects,
-        openProject,
-        openProjectInSeparateWindow,
-        deleteProject,
-        clearAllProjects,
-        initializeProjectsStore,
-        disposeProjectsStore,
-      }}
-    >
-      {props.children}
-    </ProjectsContext.Provider>
+  const selectedProjectName = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId)?.name ?? "No project selected",
+    [projects, selectedProjectId],
   );
+
+  const value = useMemo<ProjectsContextValue>(
+    () => ({
+      projects,
+      isProjectsInitialized,
+      selectedProjectId,
+      selectedProjectName,
+      selectProject,
+      setProjectTaskCount,
+      reloadProjects,
+      openProject,
+      openProjectInSeparateWindow,
+      deleteProject,
+      clearAllProjects,
+      initializeProjectsStore,
+      disposeProjectsStore,
+    }),
+    [
+      clearAllProjects,
+      deleteProject,
+      disposeProjectsStore,
+      initializeProjectsStore,
+      isProjectsInitialized,
+      openProject,
+      openProjectInSeparateWindow,
+      projects,
+      reloadProjects,
+      selectProject,
+      selectedProjectId,
+      selectedProjectName,
+      setProjectTaskCount,
+    ],
+  );
+
+  return <ProjectsContext.Provider value={value}>{children}</ProjectsContext.Provider>;
 }
 
 export function useProjects(): ProjectsContextValue {
