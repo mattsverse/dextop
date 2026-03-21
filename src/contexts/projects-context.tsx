@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -183,6 +184,16 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       projects.find((project) => project.id === selectedProjectId)?.name ?? "No project selected",
     [projects, selectedProjectId],
   );
+
+  useEffect(() => {
+    void initializeProjectsStore().catch((error) => {
+      console.error("Failed to initialize projects store", error);
+    });
+
+    return () => {
+      disposeProjectsStore();
+    };
+  }, [disposeProjectsStore, initializeProjectsStore]);
 
   const value = useMemo<ProjectsContextValue>(
     () => ({

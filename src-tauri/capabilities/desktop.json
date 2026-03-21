@@ -11,6 +11,8 @@
   ],
   "permissions": [
     "updater:default",
-    "process:default"
+    "process:default",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-set-fullscreen"
   ]
 }
