@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
 import { FolderKanban, Plus } from "lucide-react";
 import {
   Sidebar,
@@ -14,10 +13,20 @@ import {
 import { useProjects } from "@/contexts/projects-context";
 import { ProjectListItem } from "./project-list-item";
 
-export function ProjectSidebar() {
-  const navigate = useNavigate();
-  const { deleteProject, openProject, openProjectInSeparateWindow, projects, selectedProjectId } =
-    useProjects();
+type ProjectSidebarProps = {
+  selectedProjectId: string | null;
+  onSelectProject: (projectId: string) => void;
+};
+
+/**
+ * Render the Projects sidebar with a list of projects and controls to add, open, or delete projects.
+ *
+ * @param selectedProjectId - Id of the currently selected project; used to mark the selected list item.
+ * @param onSelectProject - Callback invoked with a project's id when that project is selected.
+ * @returns The sidebar React element containing the projects list, empty state, and action controls.
+ */
+export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
+  const { deleteProject, openProject, openProjectInSeparateWindow, projects } = useProjects();
 
   return (
     <Sidebar
@@ -58,10 +67,7 @@ export function ProjectSidebar() {
                     void openProjectInSeparateWindow(project.id);
                   }}
                   onSelect={() => {
-                    navigate({
-                      to: "/projects/$projectId",
-                      params: { projectId: project.id },
-                    });
+                    onSelectProject(project.id);
                   }}
                   project={project}
                 />

@@ -4,11 +4,19 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
+  Columns2,
   FolderPlus,
+  MoveDown,
+  MoveHorizontal,
+  MoveLeft,
+  MoveRight,
+  MoveUp,
   Maximize,
   MoonStar,
   MonitorUp,
   PanelLeft,
+  Rows2,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,12 +31,26 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { SIDEBAR_TOGGLE_EVENT } from "@/components/ui/sidebar";
+import {
+  CLOSE_PANE_LABEL,
+  dispatchWorkspaceCommand,
+  MOVE_DOWN_PANE_LABEL,
+  MOVE_LEFT_PANE_LABEL,
+  MOVE_RIGHT_PANE_LABEL,
+  MOVE_UP_PANE_LABEL,
+  NEXT_PANE_LABEL,
+  SPLIT_SIDE_BY_SIDE_LABEL,
+  SPLIT_STACKED_LABEL,
+} from "@/components/projects-workspace/workspace-commands";
+import {
+  SIDEBAR_KEYBOARD_SHORTCUT_LABEL,
+  SIDEBAR_TOGGLE_EVENT,
+} from "@/components/ui/sidebar";
 import { useProjects } from "@/contexts/projects-context";
 import { useTheme } from "@/contexts/theme-context";
 import { processLogger } from "@/lib/logger";
 
-type CommandGroupKey = "Projects" | "Appearance" | "Window";
+type CommandGroupKey = "Projects" | "Workspace" | "Appearance" | "Window";
 
 type PaletteCommand = {
   id: string;
@@ -41,8 +63,14 @@ type PaletteCommand = {
   shortcutLabel?: string;
 };
 
-const GROUP_ORDER: CommandGroupKey[] = ["Projects", "Appearance", "Window"];
+const GROUP_ORDER: CommandGroupKey[] = ["Projects", "Workspace", "Appearance", "Window"];
 
+/**
+ * Convert an unknown error value into a user-facing message string.
+ *
+ * @param error - The error value to convert; may be an `Error`, a string, or any other value.
+ * @returns The error's message if `error` is an `Error` with a message, the trimmed string if `error` is a non-empty string, or `"Unexpected error"` otherwise.
+ */
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
     return error.message;
@@ -55,6 +83,14 @@ function toErrorMessage(error: unknown): string {
   return "Unexpected error";
 }
 
+/**
+ * Render a keyboard-driven command palette that exposes project, appearance, workspace, and window actions.
+ *
+ * The palette provides grouped, searchable commands with keyboard shortcuts and route- and environment-aware
+ * availability (e.g., workspace and sidebar commands require the `/projects` route; fullscreen commands require Tauri).
+ *
+ * @returns The React element for the command palette controlled by internal open/close state and hotkeys.
+ */
 export function CommandPalette() {
   const location = useLocation();
   const { openProject, openProjectInSeparateWindow, selectedProjectId } =
@@ -62,6 +98,7 @@ export function CommandPalette() {
   const { resolvedTheme, toggleThemePreference } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const isSidebarAvailable = location.pathname.startsWith("/projects");
+  const isWorkspaceAvailable = location.pathname.startsWith("/projects");
   const toggleFullscreen = useCallback(async () => {
     if (!isTauri()) {
       return;
@@ -116,6 +153,102 @@ export function CommandPalette() {
         shortcutLabel: "Mod+Shift+T",
       },
       {
+        id: "split-pane-side-by-side",
+        label: "Split pane side by side",
+        group: "Workspace",
+        icon: Columns2,
+        onSelect: () => {
+          dispatchWorkspaceCommand("split-horizontal");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "split", "horizontal", "vertical", "multiplexer"],
+        shortcutLabel: SPLIT_SIDE_BY_SIDE_LABEL,
+      },
+      {
+        id: "split-pane-stacked",
+        label: "Split pane stacked",
+        group: "Workspace",
+        icon: Rows2,
+        onSelect: () => {
+          dispatchWorkspaceCommand("split-vertical");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "split", "vertical", "stacked", "multiplexer"],
+        shortcutLabel: SPLIT_STACKED_LABEL,
+      },
+      {
+        id: "close-focused-pane",
+        label: "Close focused pane",
+        group: "Workspace",
+        icon: X,
+        onSelect: () => {
+          dispatchWorkspaceCommand("close-pane");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "close", "remove", "multiplexer"],
+        shortcutLabel: CLOSE_PANE_LABEL,
+      },
+      {
+        id: "focus-next-pane",
+        label: "Focus next pane",
+        group: "Workspace",
+        icon: MoveHorizontal,
+        onSelect: () => {
+          dispatchWorkspaceCommand("next-pane");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "focus", "next", "cycle", "multiplexer"],
+        shortcutLabel: NEXT_PANE_LABEL,
+      },
+      {
+        id: "focus-pane-left",
+        label: "Focus pane left",
+        group: "Workspace",
+        icon: MoveLeft,
+        onSelect: () => {
+          dispatchWorkspaceCommand("focus-left");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "focus", "left", "multiplexer"],
+        shortcutLabel: MOVE_LEFT_PANE_LABEL,
+      },
+      {
+        id: "focus-pane-right",
+        label: "Focus pane right",
+        group: "Workspace",
+        icon: MoveRight,
+        onSelect: () => {
+          dispatchWorkspaceCommand("focus-right");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "focus", "right", "multiplexer"],
+        shortcutLabel: MOVE_RIGHT_PANE_LABEL,
+      },
+      {
+        id: "focus-pane-up",
+        label: "Focus pane up",
+        group: "Workspace",
+        icon: MoveUp,
+        onSelect: () => {
+          dispatchWorkspaceCommand("focus-up");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "focus", "up", "multiplexer"],
+        shortcutLabel: MOVE_UP_PANE_LABEL,
+      },
+      {
+        id: "focus-pane-down",
+        label: "Focus pane down",
+        group: "Workspace",
+        icon: MoveDown,
+        onSelect: () => {
+          dispatchWorkspaceCommand("focus-down");
+        },
+        disabled: !isWorkspaceAvailable,
+        keywords: ["workspace", "pane", "focus", "down", "multiplexer"],
+        shortcutLabel: MOVE_DOWN_PANE_LABEL,
+      },
+      {
         id: "toggle-fullscreen",
         label: "Toggle fullscreen",
         group: "Window",
@@ -135,11 +268,12 @@ export function CommandPalette() {
         },
         disabled: !isSidebarAvailable,
         keywords: ["sidebar", "panel", "navigation", "project"],
-        shortcutLabel: "Mod+B",
+        shortcutLabel: SIDEBAR_KEYBOARD_SHORTCUT_LABEL,
       },
     ],
     [
       isSidebarAvailable,
+      isWorkspaceAvailable,
       openProject,
       openProjectInSeparateWindow,
       resolvedTheme,

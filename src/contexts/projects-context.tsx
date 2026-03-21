@@ -23,7 +23,7 @@ type ProjectsContextValue = {
   isProjectsInitialized: boolean;
   selectedProjectId: string | null;
   selectedProjectName: string;
-  selectProject: (projectId: string) => void;
+  selectProject: (projectId: string | null) => void;
   setProjectTaskCount: (projectPath: string, taskCount: number) => void;
   reloadProjects: () => Promise<void>;
   openProject: () => Promise<void>;
@@ -36,6 +36,16 @@ type ProjectsContextValue = {
 
 const ProjectsContext = createContext<ProjectsContextValue | undefined>(undefined);
 
+/**
+ * Provides projects state, selection, and related actions to descendant components.
+ *
+ * The provider exposes the current projects list, initialization status, selected project id and name,
+ * and functions to select projects, update task counts, reload/modify the project list, and manage
+ * the underlying mutation subscription lifecycle.
+ *
+ * @param children - The React children that will have access to the Projects context
+ * @returns The ProjectsContext provider element wrapping `children`
+ */
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [isProjectsInitialized, setIsProjectsInitialized] = useState(false);
@@ -73,7 +83,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     });
   }, [ensureSelection]);
 
-  const selectProject = useCallback((projectId: string) => {
+  const selectProject = useCallback((projectId: string | null) => {
     setSelectedProjectId(projectId);
   }, []);
 

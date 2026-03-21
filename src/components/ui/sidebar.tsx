@@ -28,7 +28,8 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
-const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+const SIDEBAR_KEYBOARD_SHORTCUT = "t"
+export const SIDEBAR_KEYBOARD_SHORTCUT_LABEL = "Ctrl+T"
 export const SIDEBAR_TOGGLE_EVENT = "dextop:sidebar-toggle"
 
 type SidebarContextProps = {
@@ -52,6 +53,17 @@ function useSidebar() {
   return context
 }
 
+/**
+ * Provides sidebar state and controls to descendants and renders the sidebar wrapper.
+ *
+ * Manages desktop open/closed state (supporting controlled `open`/`onOpenChange`), persists the desktop state in a cookie, maintains mobile sheet visibility, registers the Ctrl+T keyboard shortcut and a custom window toggle event, and exposes state and control callbacks via SidebarContext. Also sets CSS variables for sidebar widths and wraps children in a TooltipProvider.
+ *
+ * @param defaultOpen - Initial desktop open state when the component is uncontrolled (defaults to `true`).
+ * @param open - Controlled desktop open state. When provided, component becomes controlled and internal state is not used.
+ * @param onOpenChange - Callback invoked with the next desktop open state when it changes (used for controlled updates). If not provided, the provider updates its internal state and writes the state to a cookie.
+ *
+ * @returns The SidebarContext provider and wrapper element that renders children with sidebar-related layout and tooling.
+ */
 function SidebarProvider({
   defaultOpen = true,
   open: openProp,
@@ -96,8 +108,8 @@ function SidebarProvider({
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
+        event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
+        event.ctrlKey
       ) {
         event.preventDefault()
         toggleSidebar()
