@@ -29,6 +29,7 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+export const SIDEBAR_TOGGLE_EVENT = "dextop:sidebar-toggle"
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
@@ -105,6 +106,15 @@ function SidebarProvider({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [toggleSidebar])
+
+  React.useEffect(() => {
+    const handleSidebarToggle = () => {
+      toggleSidebar()
+    }
+
+    window.addEventListener(SIDEBAR_TOGGLE_EVENT, handleSidebarToggle)
+    return () => window.removeEventListener(SIDEBAR_TOGGLE_EVENT, handleSidebarToggle)
   }, [toggleSidebar])
 
   // We add a state so that we can do data-state="expanded" or "collapsed".

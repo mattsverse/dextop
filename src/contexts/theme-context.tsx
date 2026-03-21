@@ -9,10 +9,13 @@ import {
 } from "react";
 
 export type ThemePreference = "light" | "dark" | "system";
+type ResolvedTheme = "light" | "dark";
 
 type ThemeContextValue = {
   themePreference: ThemePreference;
+  resolvedTheme: ResolvedTheme;
   setThemePreference: (preference: ThemePreference) => void;
+  toggleThemePreference: () => void;
 };
 
 const THEME_STORAGE_KEY = "dextop-theme";
@@ -28,27 +31,34 @@ function getSystemTheme(): "light" | "dark" {
   return window.matchMedia(THEME_MEDIA_QUERY).matches ? "dark" : "light";
 }
 
-function resolveTheme(preference: ThemePreference): "light" | "dark" {
-  return preference === "system" ? getSystemTheme() : preference;
+function resolveTheme(
+  preference: ThemePreference,
+  systemTheme: ResolvedTheme,
+): ResolvedTheme {
+  return preference === "system" ? systemTheme : preference;
 }
 
-function applyTheme(preference: ThemePreference): void {
+function applyTheme(resolvedTheme: ResolvedTheme): void {
   if (typeof document === "undefined") {
     return;
   }
 
-  const resolvedTheme = resolveTheme(preference);
   document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
   document.documentElement.style.colorScheme = resolvedTheme;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>("system");
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
+
+    const mediaQuery = window.matchMedia(THEME_MEDIA_QUERY);
+    const initialSystemTheme = getSystemTheme();
+    setSystemTheme(initialSystemTheme);
 
     const storedThemePreference = window.localStorage.getItem(THEME_STORAGE_KEY);
     const initialThemePreference = isThemePreference(storedThemePreference)
@@ -56,22 +66,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       : "system";
 
     setThemePreferenceState(initialThemePreference);
-    applyTheme(initialThemePreference);
 
-    const mediaQuery = window.matchMedia(THEME_MEDIA_QUERY);
-    const handleChange = () => {
-      if (themePreference !== "system") {
-        return;
-      }
-
-      applyTheme("system");
+    const handleSystemThemeChange = () => {
+      setSystemTheme(getSystemTheme());
     };
 
-    mediaQuery.addEventListener("change", handleChange);
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
     return () => {
-      mediaQuery.removeEventListener("change", handleChange);
+      mediaQuery.removeEventListener("change", handleSystemThemeChange);
     };
-  }, [themePreference]);
+  }, []);
+
+  const resolvedTheme = useMemo(
+    () => resolveTheme(themePreference, systemTheme),
+    [systemTheme, themePreference],
+  );
+
+  useEffect(() => {
+    applyTheme(resolvedTheme);
+  }, [resolvedTheme]);
 
   const setThemePreference = useCallback((preference: ThemePreference) => {
     setThemePreferenceState(preference);
@@ -79,16 +92,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(THEME_STORAGE_KEY, preference);
     }
-
-    applyTheme(preference);
   }, []);
+
+  const toggleThemePreference = useCallback(() => {
+    setThemePreference(resolvedTheme === "dark" ? "light" : "dark");
+  }, [resolvedTheme, setThemePreference]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
+      resolvedTheme,
       themePreference,
       setThemePreference,
+      toggleThemePreference,
     }),
-    [setThemePreference, themePreference],
+    [resolvedTheme, setThemePreference, themePreference, toggleThemePreference],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

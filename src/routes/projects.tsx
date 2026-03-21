@@ -10,13 +10,7 @@ export const Route = createFileRoute("/projects")({
 });
 
 function RouteComponent() {
-  const {
-    disposeProjectsStore,
-    initializeProjectsStore,
-    projects,
-    selectedProjectId,
-    selectedProjectName,
-  } = useProjects();
+  const { projects, selectedProjectId, selectedProjectName } = useProjects();
   const { disposeTasksStore, initializeTasksStore, setActiveProjectPath } = useTasks();
 
   const selectedProjectPath = useMemo(() => {
@@ -28,18 +22,14 @@ function RouteComponent() {
   }, [projects, selectedProjectId]);
 
   useEffect(() => {
-    void initializeProjectsStore().catch((error) => {
-      console.error("Failed to initialize projects store", error);
-    });
     void initializeTasksStore().catch((error) => {
       console.error("Failed to initialize tasks store", error);
     });
 
     return () => {
       disposeTasksStore();
-      disposeProjectsStore();
     };
-  }, [disposeProjectsStore, disposeTasksStore, initializeProjectsStore, initializeTasksStore]);
+  }, [disposeTasksStore, initializeTasksStore]);
 
   useEffect(() => {
     void setActiveProjectPath(selectedProjectPath).catch((error) => {
