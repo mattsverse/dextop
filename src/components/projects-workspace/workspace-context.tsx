@@ -13,6 +13,7 @@ import {
   assignProjectToPane,
   closeWorkspacePane,
   createWorkspaceState,
+  focusNextWorkspacePane,
   focusWorkspacePane,
   getWorkspacePaneById,
   listWorkspacePanes,
@@ -40,6 +41,7 @@ type WorkspaceContextValue = {
   closePane: (paneId: string) => void;
   closeFocusedPane: () => void;
   focusPane: (paneId: string) => void;
+  focusNextPane: () => void;
   moveFocus: (direction: WorkspaceMoveDirection) => void;
   assignProjectToPane: (paneId: string, projectId: string | null) => void;
   assignProjectToFocusedPane: (projectId: string | null) => void;
@@ -178,6 +180,10 @@ export function WorkspaceProvider({
     setWorkspaceState((currentState) => focusWorkspacePane(currentState, paneId));
   }, []);
 
+  const focusNextPane = useCallback(() => {
+    setWorkspaceState((currentState) => focusNextWorkspacePane(currentState));
+  }, []);
+
   const moveFocus = useCallback((direction: WorkspaceMoveDirection) => {
     setWorkspaceState((currentState) => moveWorkspaceFocus(currentState, direction));
   }, []);
@@ -216,6 +222,7 @@ export function WorkspaceProvider({
       closePane,
       closeFocusedPane,
       focusPane,
+      focusNextPane,
       moveFocus,
       assignProjectToPane: assignProject,
       assignProjectToFocusedPane,
@@ -227,6 +234,7 @@ export function WorkspaceProvider({
       closePane,
       closeFocusedPane,
       focusPane,
+      focusNextPane,
       focusedProjectId,
       isWorkspaceReady,
       moveFocus,

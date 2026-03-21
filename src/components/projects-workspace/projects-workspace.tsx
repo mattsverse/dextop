@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { useHotkey } from "@tanstack/react-hotkeys";
+import { useHotkeySequence } from "@tanstack/react-hotkeys";
+import type { HotkeySequence } from "@tanstack/hotkeys";
 import { Columns2, Rows2, SquareDashed, X } from "lucide-react";
 import { ProjectBoardPlaceholder, ProjectBoardView } from "@/components/project-board";
 import { ProjectSidebar } from "@/components/project-sidebar";
@@ -14,6 +15,14 @@ import { useProjects } from "@/contexts/projects-context";
 import { useTasks } from "@/contexts/tasks-context";
 import { cn } from "@/lib/utils";
 import { WorkspaceProvider, useWorkspace } from "./workspace-context";
+import {
+  CLOSE_PANE_LABEL,
+  SPLIT_SIDE_BY_SIDE_LABEL,
+  SPLIT_STACKED_LABEL,
+  TMUX_PREFIX_LABEL,
+  WORKSPACE_COMMAND_EVENT,
+  type WorkspaceCommand,
+} from "./workspace-commands";
 import { type WorkspaceNode } from "./workspace-state";
 
 type ProjectsWorkspaceProps = {
@@ -30,6 +39,15 @@ type WorkspaceNodeViewProps = {
 function getPaneCountLabel(count: number): string {
   return count === 1 ? "1 pane open" : `${count} panes open`;
 }
+
+const TMUX_SPLIT_SIDE_BY_SIDE_SEQUENCE = ["Control+B", "%"] as unknown as HotkeySequence;
+const TMUX_SPLIT_STACKED_SEQUENCE = ["Control+B", '"'] as unknown as HotkeySequence;
+const TMUX_CLOSE_SEQUENCE = ["Control+B", "X"] as HotkeySequence;
+const TMUX_NEXT_PANE_SEQUENCE = ["Control+B", "O"] as HotkeySequence;
+const TMUX_MOVE_LEFT_SEQUENCE = ["Control+B", "ArrowLeft"] as HotkeySequence;
+const TMUX_MOVE_RIGHT_SEQUENCE = ["Control+B", "ArrowRight"] as HotkeySequence;
+const TMUX_MOVE_UP_SEQUENCE = ["Control+B", "ArrowUp"] as HotkeySequence;
+const TMUX_MOVE_DOWN_SEQUENCE = ["Control+B", "ArrowDown"] as HotkeySequence;
 
 function WorkspacePanePlaceholder() {
   const { projects } = useProjects();
@@ -134,7 +152,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
               splitPane(node.id, "horizontal");
             }}
             size="icon-xs"
-            title="Split vertically (Mod+Alt+V)"
+            title={`Split vertically (${SPLIT_SIDE_BY_SIDE_LABEL})`}
             variant="ghost"
           >
             <Columns2 />
@@ -145,7 +163,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
               splitPane(node.id, "vertical");
             }}
             size="icon-xs"
-            title="Split horizontally (Mod+Alt+H)"
+            title={`Split horizontally (${SPLIT_STACKED_LABEL})`}
             variant="ghost"
           >
             <Rows2 />
@@ -157,7 +175,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
               closePane(node.id);
             }}
             size="icon-xs"
-            title="Close pane (Mod+Alt+W)"
+            title={`Close pane (${CLOSE_PANE_LABEL})`}
             variant="ghost"
           >
             <X />
@@ -178,6 +196,7 @@ function ProjectsWorkspaceShell() {
     assignProjectToFocusedPane,
     focusedProjectId,
     isWorkspaceReady,
+    focusNextPane,
     moveFocus,
     panes,
     splitFocusedPane,
@@ -194,8 +213,58 @@ function ProjectsWorkspaceShell() {
     selectProject(focusedProjectId);
   }, [focusedProjectId, selectProject]);
 
-  useHotkey(
-    "Mod+Alt+V",
+  useEffect(() => {
+    const handleWorkspaceCommand = (event: Event) => {
+      const command = (event as CustomEvent<WorkspaceCommand>).detail;
+
+      if (command === "split-horizontal") {
+        splitFocusedPane("horizontal");
+        return;
+      }
+
+      if (command === "split-vertical") {
+        splitFocusedPane("vertical");
+        return;
+      }
+
+      if (command === "close-pane") {
+        closeFocusedPane();
+        return;
+      }
+
+      if (command === "next-pane") {
+        focusNextPane();
+        return;
+      }
+
+      if (command === "focus-left") {
+        moveFocus("left");
+        return;
+      }
+
+      if (command === "focus-right") {
+        moveFocus("right");
+        return;
+      }
+
+      if (command === "focus-up") {
+        moveFocus("up");
+        return;
+      }
+
+      if (command === "focus-down") {
+        moveFocus("down");
+      }
+    };
+
+    window.addEventListener(WORKSPACE_COMMAND_EVENT, handleWorkspaceCommand);
+    return () => {
+      window.removeEventListener(WORKSPACE_COMMAND_EVENT, handleWorkspaceCommand);
+    };
+  }, [closeFocusedPane, focusNextPane, moveFocus, splitFocusedPane]);
+
+  useHotkeySequence(
+    TMUX_SPLIT_SIDE_BY_SIDE_SEQUENCE,
     () => {
       splitFocusedPane("horizontal");
     },
@@ -203,11 +272,12 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
-  useHotkey(
-    "Mod+Alt+H",
+  useHotkeySequence(
+    TMUX_SPLIT_STACKED_SEQUENCE,
     () => {
       splitFocusedPane("vertical");
     },
@@ -215,11 +285,12 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
-  useHotkey(
-    "Mod+Alt+W",
+  useHotkeySequence(
+    TMUX_CLOSE_SEQUENCE,
     () => {
       closeFocusedPane();
     },
@@ -227,11 +298,25 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
-  useHotkey(
-    "Mod+Alt+ArrowLeft",
+  useHotkeySequence(
+    TMUX_NEXT_PANE_SEQUENCE,
+    () => {
+      focusNextPane();
+    },
+    {
+      enabled: isWorkspaceReady,
+      ignoreInputs: true,
+      preventDefault: true,
+      timeout: 1200,
+    },
+  );
+
+  useHotkeySequence(
+    TMUX_MOVE_LEFT_SEQUENCE,
     () => {
       moveFocus("left");
     },
@@ -239,11 +324,12 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
-  useHotkey(
-    "Mod+Alt+ArrowRight",
+  useHotkeySequence(
+    TMUX_MOVE_RIGHT_SEQUENCE,
     () => {
       moveFocus("right");
     },
@@ -251,11 +337,12 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
-  useHotkey(
-    "Mod+Alt+ArrowUp",
+  useHotkeySequence(
+    TMUX_MOVE_UP_SEQUENCE,
     () => {
       moveFocus("up");
     },
@@ -263,11 +350,12 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
-  useHotkey(
-    "Mod+Alt+ArrowDown",
+  useHotkeySequence(
+    TMUX_MOVE_DOWN_SEQUENCE,
     () => {
       moveFocus("down");
     },
@@ -275,6 +363,7 @@ function ProjectsWorkspaceShell() {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
+      timeout: 1200,
     },
   );
 
@@ -302,7 +391,7 @@ function ProjectsWorkspaceShell() {
           <div className="ml-auto hidden text-right md:block">
             <p className="text-[11px] font-medium text-foreground">{getPaneCountLabel(panes.length)}</p>
             <p className="text-[11px] text-muted-foreground">
-              Sidebar targets the focused pane
+              {TMUX_PREFIX_LABEL} then % / " / x / o / arrows
             </p>
           </div>
         </header>

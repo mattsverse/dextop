@@ -3,6 +3,7 @@ import {
   assignProjectToPane,
   closeWorkspacePane,
   createWorkspaceState,
+  focusNextWorkspacePane,
   focusWorkspacePane,
   moveWorkspaceFocus,
   normalizeWorkspaceState,
@@ -82,6 +83,20 @@ describe("workspace-state", () => {
 
     expect(movedRight.focusedPaneId).not.toBe(leftPaneId);
     expect(movedDown.focusedPaneId).not.toBe(movedRight.focusedPaneId);
+  });
+
+  test("cycles to the next pane in leaf order", () => {
+    const initialState = createWorkspaceState("alpha");
+    const splitState = splitWorkspacePane(initialState, initialState.focusedPaneId, "horizontal");
+    const rightPaneId = splitState.focusedPaneId;
+    const stackedState = splitWorkspacePane(splitState, rightPaneId, "vertical");
+    const firstCycle = focusNextWorkspacePane(focusWorkspacePane(stackedState, "pane-1"));
+    const secondCycle = focusNextWorkspacePane(firstCycle);
+    const thirdCycle = focusNextWorkspacePane(secondCycle);
+
+    expect(firstCycle.focusedPaneId).toBe("pane-2");
+    expect(secondCycle.focusedPaneId).toBe("pane-3");
+    expect(thirdCycle.focusedPaneId).toBe("pane-1");
   });
 
   test("normalizes persisted layouts and clears deleted projects", () => {

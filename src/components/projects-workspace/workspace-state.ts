@@ -407,6 +407,27 @@ export function moveWorkspaceFocus(
   return nextPaneId ? { ...state, focusedPaneId: nextPaneId } : state;
 }
 
+export function focusNextWorkspacePane(state: WorkspaceState): WorkspaceState {
+  const panes = listWorkspacePanes(state.root);
+  if (panes.length <= 1) {
+    return state;
+  }
+
+  const currentIndex = panes.findIndex((pane) => pane.id === state.focusedPaneId);
+  if (currentIndex === -1) {
+    return {
+      ...state,
+      focusedPaneId: panes[0]?.id ?? state.focusedPaneId,
+    };
+  }
+
+  const nextIndex = (currentIndex + 1) % panes.length;
+  return {
+    ...state,
+    focusedPaneId: panes[nextIndex]?.id ?? state.focusedPaneId,
+  };
+}
+
 function collectProjectIds(node: WorkspaceNode, projectIds: Set<string>): WorkspaceNode {
   if (node.kind === "pane") {
     return {
