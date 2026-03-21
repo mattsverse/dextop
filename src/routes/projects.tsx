@@ -1,25 +1,31 @@
-import { useEffect, useMemo } from "react";
-import { Outlet, createFileRoute } from "@tanstack/react-router";
-import { ProjectSidebar } from "@/components/project-sidebar";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { useProjects } from "@/contexts/projects-context";
+import { useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ProjectsWorkspace } from "@/components/projects-workspace";
 import { useTasks } from "@/contexts/tasks-context";
 
+type ProjectsSearch = {
+  projectId?: string;
+  workspace?: string;
+};
+
 export const Route = createFileRoute("/projects")({
+  validateSearch: (search: Record<string, unknown>): ProjectsSearch => ({
+    projectId:
+      typeof search.projectId === "string" && search.projectId.trim()
+        ? search.projectId
+        : undefined,
+    workspace:
+      typeof search.workspace === "string" && search.workspace.trim()
+        ? search.workspace
+        : undefined,
+  }),
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const { projects, selectedProjectId, selectedProjectName } = useProjects();
-  const { disposeTasksStore, initializeTasksStore, setActiveProjectPath } = useTasks();
-
-  const selectedProjectPath = useMemo(() => {
-    if (!selectedProjectId) {
-      return null;
-    }
-
-    return projects.find((project) => project.id === selectedProjectId)?.path ?? null;
-  }, [projects, selectedProjectId]);
+  const navigate = useNavigate({ from: "/projects" });
+  const search = Route.useSearch();
+  const { disposeTasksStore, initializeTasksStore } = useTasks();
 
   useEffect(() => {
     void initializeTasksStore().catch((error) => {
@@ -32,26 +38,37 @@ function RouteComponent() {
   }, [disposeTasksStore, initializeTasksStore]);
 
   useEffect(() => {
-    void setActiveProjectPath(selectedProjectPath).catch((error) => {
-      console.error("Failed to watch project tasks", error);
+    if (!search.projectId) {
+      return;
+    }
+
+    navigate({
+      replace: true,
+      search: (current) => ({
+        ...current,
+        projectId: undefined,
+      }),
+      to: "/projects",
     });
-  }, [selectedProjectPath, setActiveProjectPath]);
+  }, [navigate, search.projectId]);
 
   return (
-    <SidebarProvider className="h-full min-h-0" defaultOpen>
-      <ProjectSidebar />
-      <SidebarInset className="min-w-0 flex-1 overflow-y-auto border border-border/70 bg-background/70 backdrop-blur">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border/75 bg-background/82 px-4 backdrop-blur-xl">
-          <SidebarTrigger className="rounded-full border border-border/75 bg-panel text-muted-foreground hover:bg-background hover:text-foreground" />
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Project</p>
-            <p className="truncate text-sm font-semibold text-foreground">
-              {selectedProjectName ?? "Choose a project"}
-            </p>
-          </div>
-        </header>
-        <Outlet />
-      </SidebarInset>
-    </SidebarProvider>
+    <ProjectsWorkspace
+      initialProjectId={search.projectId ?? null}
+      onWorkspaceStateChange={(serializedState) => {
+        navigate({
+          replace: true,
+          search: (current) =>
+            current.workspace === serializedState
+              ? current
+              : {
+                  ...current,
+                  workspace: serializedState,
+                },
+          to: "/projects",
+        });
+      }}
+      routeWorkspaceState={search.workspace ?? null}
+    />
   );
 }
