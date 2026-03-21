@@ -57,7 +57,8 @@ function toErrorMessage(error: unknown): string {
 
 export function CommandPalette() {
   const location = useLocation();
-  const { openProject, openProjectInSeparateWindow, selectedProjectId } = useProjects();
+  const { openProject, openProjectInSeparateWindow, selectedProjectId } =
+    useProjects();
   const { resolvedTheme, toggleThemePreference } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const isSidebarAvailable = location.pathname.startsWith("/projects");
@@ -142,7 +143,6 @@ export function CommandPalette() {
       openProject,
       openProjectInSeparateWindow,
       resolvedTheme,
-      safeExecute,
       selectedProjectId,
       toggleFullscreen,
       toggleThemePreference,
@@ -301,7 +301,9 @@ export function CommandPalette() {
                       <Icon />
                       <span>{command.label}</span>
                       {command.shortcutLabel ? (
-                        <CommandShortcut>{command.shortcutLabel}</CommandShortcut>
+                        <CommandShortcut>
+                          {command.shortcutLabel}
+                        </CommandShortcut>
                       ) : null}
                     </CommandItem>
                   );
