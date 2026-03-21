@@ -179,7 +179,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const selectedProjectName = useMemo(
-    () => projects.find((project) => project.id === selectedProjectId)?.name ?? "No project selected",
+    () =>
+      projects.find((project) => project.id === selectedProjectId)?.name ?? "No project selected",
     [projects, selectedProjectId],
   );
 

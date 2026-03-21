@@ -1,8 +1,10 @@
 import { Outlet, createRootRoute } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TopNavbar } from "@/components/top-navbar";
 import { UpdaterNotification } from "@/components/updater-notification";
 import { AppProviders } from "@/contexts/app-providers";
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import { formDevtoolsPlugin } from "@tanstack/react-form-devtools";
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -18,7 +20,15 @@ function RootComponent() {
         </main>
       </div>
       <UpdaterNotification />
-      <TanStackRouterDevtools position="bottom-right" />
+      <TanStackDevtools
+        plugins={[
+          {
+            name: "Tanstack Router",
+            render: <TanStackRouterDevtoolsPanel />,
+          },
+          formDevtoolsPlugin(),
+        ]}
+      />
     </AppProviders>
   );
 }

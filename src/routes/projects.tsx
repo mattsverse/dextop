@@ -55,7 +55,9 @@ function RouteComponent() {
           <SidebarTrigger className="rounded-full border border-border/75 bg-panel text-muted-foreground hover:bg-background hover:text-foreground" />
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Project</p>
-            <p className="truncate text-sm font-semibold text-foreground">{selectedProjectName ?? "Choose a project"}</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {selectedProjectName ?? "Choose a project"}
+            </p>
           </div>
         </header>
         <Outlet />

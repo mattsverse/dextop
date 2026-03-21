@@ -2,100 +2,33 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 import {
   BoardSummaryRail,
+  compareTasksByRecentActivity,
   CreateTaskDialog,
   EmptyProjectBoard,
+  filterBoardTasks,
+  getTaskMutationErrorMessage,
+  groupSubtasksByParentId,
+  groupTasksByColumn,
+  indexTasksById,
+  INITIAL_CREATE_TASK_FORM,
   KANBAN_COLUMNS,
   KanbanColumn,
-  type KanbanColumnKey,
   ProjectBoardHeader,
   ProjectBoardPlaceholder,
-  type TaskFilterKey,
+  summarizeBoardTasks,
+  summarizeSubtaskProgress,
   TaskDetailsDialog,
   type CreateTaskFormState,
+  type KanbanColumnKey,
+  type TaskFilterKey,
 } from "@/components/project-board";
 import { useProjects } from "@/contexts/projects-context";
 import { useTasks } from "@/contexts/tasks-context";
-import { DexTask, createProjectTask } from "@/lib/tasks-service";
+import { createProjectTask } from "@/lib/tasks-service";
 
 export const Route = createFileRoute("/projects/$projectId")({
   component: RouteComponent,
 });
-
-const INITIAL_CREATE_TASK_FORM: CreateTaskFormState = {
-  name: "",
-  description: "",
-  priority: "1",
-  parentId: "",
-  blockedBy: [],
-};
-
-function getColumnKey(task: {
-  completed: boolean;
-  startedAt: string | null;
-  blockedBy: string[];
-}): KanbanColumnKey {
-  if (task.completed) {
-    return "done";
-  }
-
-  if (task.blockedBy.length > 0) {
-    return "blocked";
-  }
-
-  if (task.startedAt) {
-    return "inProgress";
-  }
-
-  return "todo";
-}
-
-function getTaskStatusLabel(task: Pick<DexTask, "completed" | "startedAt" | "blockedBy">): string {
-  const status = getColumnKey(task);
-  if (status === "todo") {
-    return "Todo";
-  }
-  if (status === "inProgress") {
-    return "In Progress";
-  }
-  if (status === "blocked") {
-    return "Blocked";
-  }
-  return "Done";
-}
-
-function formatTaskDate(value: string | null): string {
-  if (!value) {
-    return "Not set";
-  }
-
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) {
-    return value;
-  }
-
-  return new Date(timestamp).toLocaleString();
-}
-
-function toTimestamp(value: string | null): number {
-  if (!value) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  if (typeof error === "string" && error.trim()) {
-    return error;
-  }
-
-  return "We couldn't add the task. Try again.";
-}
 
 function RouteComponent() {
   const params = Route.useParams();
@@ -133,105 +66,34 @@ function RouteComponent() {
     selectProject(routeProject.id);
   }, [routeProject, selectProject]);
 
-  const sortedProjectTasks = useMemo(() => {
-    return [...projectTasks].sort((left, right) => {
-      const updatedAtDiff = toTimestamp(right.updatedAt) - toTimestamp(left.updatedAt);
-      if (updatedAtDiff !== 0) {
-        return updatedAtDiff;
-      }
-
-      const createdAtDiff = toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
-      if (createdAtDiff !== 0) {
-        return createdAtDiff;
-      }
-
-      return left.id.localeCompare(right.id);
-    });
-  }, [projectTasks]);
-
-  const groupedTasks = useMemo(() => {
-    const columns: Record<KanbanColumnKey, DexTask[]> = {
-      todo: [],
-      inProgress: [],
-      blocked: [],
-      done: [],
-    };
-
-    for (const task of sortedProjectTasks) {
-      columns[getColumnKey(task)].push(task);
-    }
-
-    return columns;
-  }, [sortedProjectTasks]);
-
-  const summary = useMemo(
-    () => ({
-      total: sortedProjectTasks.length,
-      open: sortedProjectTasks.filter((task) => !task.completed).length,
-      blocked: groupedTasks.blocked.length,
-      done: groupedTasks.done.length,
-    }),
-    [groupedTasks.blocked.length, groupedTasks.done.length, sortedProjectTasks],
+  const sortedProjectTasks = useMemo(
+    () => [...projectTasks].sort(compareTasksByRecentActivity),
+    [projectTasks],
   );
 
-  const filteredGroupedTasks = useMemo(() => {
-    const matchesFilter = (task: DexTask) => {
-      if (taskFilter === "blocked") {
-        return task.blockedBy.length > 0;
-      }
+  const groupedTasks = useMemo(() => groupTasksByColumn(sortedProjectTasks), [sortedProjectTasks]);
 
-      if (taskFilter === "inProgress") {
-        return !task.completed && Boolean(task.startedAt) && task.blockedBy.length === 0;
-      }
+  const summary = useMemo(
+    () => summarizeBoardTasks(sortedProjectTasks, groupedTasks),
+    [groupedTasks, sortedProjectTasks],
+  );
 
-      if (taskFilter === "highPriority") {
-        return task.priority !== null && task.priority <= 2;
-      }
+  const filteredGroupedTasks = useMemo(
+    () => filterBoardTasks(groupedTasks, taskFilter),
+    [groupedTasks, taskFilter],
+  );
 
-      return true;
-    };
+  const taskById = useMemo(() => indexTasksById(sortedProjectTasks), [sortedProjectTasks]);
 
-    return {
-      todo: groupedTasks.todo.filter(matchesFilter),
-      inProgress: groupedTasks.inProgress.filter(matchesFilter),
-      blocked: groupedTasks.blocked.filter(matchesFilter),
-      done: groupedTasks.done.filter(matchesFilter),
-    };
-  }, [groupedTasks, taskFilter]);
+  const subtasksByParentId = useMemo(
+    () => groupSubtasksByParentId(sortedProjectTasks),
+    [sortedProjectTasks],
+  );
 
-  const taskById = useMemo(() => {
-    const byId = new Map<string, DexTask>();
-    for (const task of sortedProjectTasks) {
-      byId.set(task.id, task);
-    }
-    return byId;
-  }, [sortedProjectTasks]);
-
-  const subtasksByParentId = useMemo(() => {
-    const byParentId = new Map<string, DexTask[]>();
-    for (const task of sortedProjectTasks) {
-      if (!task.parentId) {
-        continue;
-      }
-
-      const existing = byParentId.get(task.parentId);
-      if (existing) {
-        existing.push(task);
-      } else {
-        byParentId.set(task.parentId, [task]);
-      }
-    }
-    return byParentId;
-  }, [sortedProjectTasks]);
-
-  const subtaskProgressByTaskId = useMemo(() => {
-    const progressByTaskId = new Map<string, { completed: number; total: number }>();
-    for (const [parentId, subtasks] of subtasksByParentId) {
-      const completed = subtasks.filter((task) => task.completed).length;
-      progressByTaskId.set(parentId, { completed, total: subtasks.length });
-    }
-    return progressByTaskId;
-  }, [subtasksByParentId]);
+  const subtaskProgressByTaskId = useMemo(
+    () => summarizeSubtaskProgress(subtasksByParentId),
+    [subtasksByParentId],
+  );
 
   const selectedTask = useMemo(() => {
     if (!selectedTaskId) {
@@ -261,20 +123,6 @@ function RouteComponent() {
   const hasTaskRelationOptions = taskRelationOptions.length > 0;
 
   const getSubtaskProgress = (taskId: string) => subtaskProgressByTaskId.get(taskId);
-
-  const getTaskStatusTone = (task: DexTask): "neutral" | "active" | "warning" | "success" => {
-    const status = getColumnKey(task);
-    if (status === "inProgress") {
-      return "active";
-    }
-    if (status === "blocked") {
-      return "warning";
-    }
-    if (status === "done") {
-      return "success";
-    }
-    return "neutral";
-  };
 
   const resetCreateTaskForm = () => {
     setCreateTaskForm({ ...INITIAL_CREATE_TASK_FORM });
@@ -357,7 +205,7 @@ function RouteComponent() {
       setIsCreateTaskOpen(false);
       resetCreateTaskForm();
     } catch (error) {
-      setCreateTaskError(getErrorMessage(error));
+      setCreateTaskError(getTaskMutationErrorMessage(error));
     } finally {
       setIsCreateTaskPending(false);
     }
@@ -410,21 +258,20 @@ function RouteComponent() {
                   totalTasks={summary.total}
                 />
                 <div className="flex flex-1 gap-4 overflow-x-auto overflow-y-hidden pb-2">
-                {KANBAN_COLUMNS.map((column) => {
-                  const tasksInColumn = filteredGroupedTasks[column.key];
-                  return (
-                    <KanbanColumn
-                      key={column.key}
-                      column={column}
-                      getSubtaskProgress={getSubtaskProgress}
-                      getTaskStatusTone={getTaskStatusTone}
-                      isCollapsed={collapsedColumns[column.key]}
-                      onOpenTask={openTaskDetails}
-                      onToggleCollapsed={() => toggleColumnCollapsed(column.key)}
-                      tasks={tasksInColumn}
-                    />
-                  );
-                })}
+                  {KANBAN_COLUMNS.map((column) => {
+                    const tasksInColumn = filteredGroupedTasks[column.key];
+                    return (
+                      <KanbanColumn
+                        key={column.key}
+                        column={column}
+                        getSubtaskProgress={getSubtaskProgress}
+                        isCollapsed={collapsedColumns[column.key]}
+                        onOpenTask={openTaskDetails}
+                        onToggleCollapsed={() => toggleColumnCollapsed(column.key)}
+                        tasks={tasksInColumn}
+                      />
+                    );
+                  })}
                 </div>
               </>
             ) : (
@@ -460,9 +307,6 @@ function RouteComponent() {
       />
 
       <TaskDetailsDialog
-        formatTaskDate={formatTaskDate}
-        getTaskStatusLabel={getTaskStatusLabel}
-        getTaskStatusTone={getTaskStatusTone}
         onOpenChange={handleDetailsOpenChange}
         onOpenTask={openTaskDetails}
         open={isDetailsOpen}
