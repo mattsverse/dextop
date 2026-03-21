@@ -7,22 +7,6 @@ export type StatusTone = "neutral" | "active" | "warning" | "success";
 export type SubtaskProgress = { completed: number; total: number };
 export type GroupedTasks = Record<KanbanColumnKey, DexTask[]>;
 
-export type CreateTaskFormState = {
-  name: string;
-  description: string;
-  priority: string;
-  parentId: string;
-  blockedBy: string[];
-};
-
-export const INITIAL_CREATE_TASK_FORM: CreateTaskFormState = {
-  name: "",
-  description: "",
-  priority: "1",
-  parentId: "",
-  blockedBy: [],
-};
-
 export const KANBAN_COLUMNS: Array<{
   key: KanbanColumnKey;
   label: string;

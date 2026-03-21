@@ -1,4 +1,7 @@
 import type { DexTask } from "@/lib/tasks-service";
+import { useForm } from "@tanstack/react-form";
+import { useStore } from "@tanstack/react-store";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,54 +25,112 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getTaskStatusLabel, type CreateTaskFormState } from "./model";
+import { createProjectTask } from "@/lib/tasks-service";
+import { getTaskMutationErrorMessage, getTaskStatusLabel } from "./model";
 import { SectionCard } from "./shared";
+
+type CreateTaskFormValues = {
+  name: string;
+  description: string;
+  priority: string;
+  parentId: string;
+  blockedBy: string[];
+};
+
+const INITIAL_CREATE_TASK_FORM: CreateTaskFormValues = {
+  name: "",
+  description: "",
+  priority: "1",
+  parentId: "",
+  blockedBy: [],
+};
 
 type CreateTaskDialogProps = {
   open: boolean;
+  setOpen: (open: boolean) => void;
   projectName: string;
-  form: CreateTaskFormState;
-  nameError: string | null;
-  error: string | null;
-  hasTaskRelationOptions: boolean;
+  projectPath: string | null;
   relationOptions: DexTask[];
-  isPending: boolean;
-  onOpenChange: (open: boolean) => void;
-  onFormChange: <K extends keyof CreateTaskFormState>(
-    field: K,
-    value: CreateTaskFormState[K],
-  ) => void;
-  onToggleBlockedBy: (taskId: string, checked: boolean) => void;
-  onNameInput: (value: string) => void;
-  onSubmit: () => void;
 };
 
 export function CreateTaskDialog({
   open,
+  setOpen,
   projectName,
-  form,
-  nameError,
-  error,
-  hasTaskRelationOptions,
+  projectPath,
   relationOptions,
-  isPending,
-  onOpenChange,
-  onFormChange,
-  onToggleBlockedBy,
-  onNameInput,
-  onSubmit,
 }: CreateTaskDialogProps) {
-  const relationItems = relationOptions.map((task) => ({
-    value: task.id,
-    label: task.name,
-    status: getTaskStatusLabel(task),
-  }));
-  const selectedParentItem = relationItems.find((item) => item.value === form.parentId) ?? null;
-  const selectedBlockedItems = relationItems.filter((item) => form.blockedBy.includes(item.value));
+  const [error, setError] = useState<string | null>(null);
   const blockersAnchorRef = useComboboxAnchor();
+  const relationItems = useMemo(
+    () =>
+      relationOptions.map((task) => ({
+        value: task.id,
+        label: task.name,
+        status: getTaskStatusLabel(task),
+      })),
+    [relationOptions],
+  );
+  const hasTaskRelationOptions = relationItems.length > 0;
+  const form = useForm({
+    defaultValues: INITIAL_CREATE_TASK_FORM,
+    onSubmit: async ({ value }) => {
+      if (!projectPath) {
+        setError("Choose a project before you add a task.");
+        return;
+      }
+
+      setError(null);
+
+      const parsedPriority = Number.parseInt(value.priority.trim(), 10);
+      await createProjectTask(projectPath, {
+        name: value.name.trim(),
+        description: value.description.trim() || null,
+        priority: Number.isNaN(parsedPriority) ? 1 : parsedPriority,
+        parentId: value.parentId || null,
+        blockedBy: value.blockedBy,
+      });
+
+      form.reset();
+      setOpen(false);
+    },
+  });
+  const isSubmitting = useStore(form.store, (state) => state.isSubmitting);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setError(null);
+    form.reset();
+  }, [form, open]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && isSubmitting) {
+      return;
+    }
+
+    if (!nextOpen) {
+      setError(null);
+      form.reset();
+    }
+
+    setOpen(nextOpen);
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    try {
+      await form.handleSubmit();
+    } catch (submitError) {
+      setError(getTaskMutationErrorMessage(submitError));
+    }
+  };
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent className="!flex !max-h-[min(88vh,48rem)] !min-h-0 !w-[min(92vw,38rem)] !max-w-[38rem] !flex-col !overflow-hidden !rounded-[1.25rem] !border !border-border/80 !bg-panel !p-0 !text-foreground shadow-[0_24px_72px_rgba(15,23,42,0.16)] dark:shadow-[0_24px_72px_rgba(2,6,23,0.42)]">
         <DialogHeader className="gap-2 border-b border-border/75 px-6 py-5">
           <p className="text-[11px] font-medium text-muted-foreground">Add task</p>
@@ -84,8 +145,7 @@ export function CreateTaskDialog({
         <form
           className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
-            event.preventDefault();
-            onSubmit();
+            void handleSubmit(event);
           }}
         >
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6">
@@ -96,20 +156,52 @@ export function CreateTaskDialog({
                 headerClassName="min-h-[5.5rem]"
                 title="Task"
               >
-                <label className="space-y-2 text-sm">
-                  <span className="font-medium text-foreground">Task Title</span>
-                  <Input
-                    aria-invalid={nameError ? "true" : undefined}
-                    autoFocus
-                    disabled={isPending}
-                    onChange={(event) => onNameInput(event.currentTarget.value)}
-                    placeholder="Tighten board filters"
-                    value={form.name}
-                  />
-                  {nameError ? (
-                    <p className="text-xs font-medium text-destructive">{nameError}</p>
-                  ) : null}
-                </label>
+                <form.Field
+                  name="name"
+                  validators={{
+                    onChange: ({ value }) => {
+                      if (!value.trim()) {
+                        return "Enter a task title.";
+                      }
+
+                      return undefined;
+                    },
+                    onSubmit: ({ value }) => {
+                      if (!value.trim()) {
+                        return "Enter a task title.";
+                      }
+
+                      return undefined;
+                    },
+                  }}
+                >
+                  {(field) => {
+                    const nameError = getFieldErrorMessage(field.state.meta.errors);
+
+                    return (
+                      <label className="space-y-2 text-sm">
+                        <span className="font-medium text-foreground">Task Title</span>
+                        <Input
+                          aria-invalid={nameError ? "true" : undefined}
+                          autoFocus
+                          disabled={isSubmitting}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => {
+                            field.handleChange(event.currentTarget.value);
+                            if (error) {
+                              setError(null);
+                            }
+                          }}
+                          placeholder="Tighten board filters"
+                          value={field.state.value}
+                        />
+                        {nameError ? (
+                          <p className="text-xs font-medium text-destructive">{nameError}</p>
+                        ) : null}
+                      </label>
+                    );
+                  }}
+                </form.Field>
               </SectionCard>
 
               <SectionCard
@@ -118,17 +210,27 @@ export function CreateTaskDialog({
                 headerClassName="min-h-[5.5rem]"
                 title="Priority"
               >
-                <label className="space-y-2 text-sm">
-                  <span className="font-medium text-foreground">Priority</span>
-                  <Input
-                    disabled={isPending}
-                    min="1"
-                    onChange={(event) => onFormChange("priority", event.currentTarget.value)}
-                    placeholder="1"
-                    type="number"
-                    value={form.priority}
-                  />
-                </label>
+                <form.Field name="priority">
+                  {(field) => (
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium text-foreground">Priority</span>
+                      <Input
+                        disabled={isSubmitting}
+                        min="1"
+                        onBlur={field.handleBlur}
+                        onChange={(event) => {
+                          field.handleChange(event.currentTarget.value);
+                          if (error) {
+                            setError(null);
+                          }
+                        }}
+                        placeholder="1"
+                        type="number"
+                        value={field.state.value}
+                      />
+                    </label>
+                  )}
+                </form.Field>
               </SectionCard>
             </div>
 
@@ -137,13 +239,23 @@ export function CreateTaskDialog({
               eyebrow="Context"
               title="Description"
             >
-              <Textarea
-                className="min-h-28 resize-y"
-                disabled={isPending}
-                onChange={(event) => onFormChange("description", event.currentTarget.value)}
-                placeholder="What needs to happen, what is in scope, and what done looks like."
-                value={form.description}
-              />
+              <form.Field name="description">
+                {(field) => (
+                  <Textarea
+                    className="min-h-28 resize-y"
+                    disabled={isSubmitting}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value);
+                      if (error) {
+                        setError(null);
+                      }
+                    }}
+                    placeholder="What needs to happen, what is in scope, and what done looks like."
+                    value={field.state.value}
+                  />
+                )}
+              </form.Field>
             </SectionCard>
 
             <div className="grid gap-4">
@@ -156,41 +268,51 @@ export function CreateTaskDialog({
                 eyebrow="Relationships"
                 title="Parent Task"
               >
-                {hasTaskRelationOptions ? (
-                  <Combobox
-                    items={relationItems}
-                    onValueChange={(item) => {
-                      onFormChange("parentId", item?.value ?? "");
-                    }}
-                    value={selectedParentItem}
-                  >
-                    <ComboboxInput
-                      disabled={isPending}
-                      placeholder="Search for a parent task"
-                      showClear
-                    />
-                    <ComboboxContent>
-                      <ComboboxEmpty>No tasks match that search.</ComboboxEmpty>
-                      <ComboboxList>
-                        <ComboboxItem value={null}>No parent</ComboboxItem>
-                        <ComboboxCollection>
-                          {(item: (typeof relationItems)[number]) => (
-                            <ComboboxItem key={item.value} value={item}>
-                              <div className="min-w-0">
-                                <div className="truncate font-medium">{item.label}</div>
-                                <div className="truncate text-[11px] text-muted-foreground">
-                                  {item.value} • {item.status}
-                                </div>
-                              </div>
-                            </ComboboxItem>
-                          )}
-                        </ComboboxCollection>
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </Combobox>
-                ) : (
-                  <Input disabled placeholder="Add a task first" value="" />
-                )}
+                <form.Field name="parentId">
+                  {(field) => {
+                    const selectedParentItem =
+                      relationItems.find((item) => item.value === field.state.value) ?? null;
+
+                    return hasTaskRelationOptions ? (
+                      <Combobox
+                        items={relationItems}
+                        onValueChange={(item) => {
+                          field.handleChange(item?.value ?? "");
+                          if (error) {
+                            setError(null);
+                          }
+                        }}
+                        value={selectedParentItem}
+                      >
+                        <ComboboxInput
+                          disabled={isSubmitting}
+                          placeholder="Search for a parent task"
+                          showClear
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>No tasks match that search.</ComboboxEmpty>
+                          <ComboboxList>
+                            <ComboboxItem value={null}>No parent</ComboboxItem>
+                            <ComboboxCollection>
+                              {(item: (typeof relationItems)[number]) => (
+                                <ComboboxItem key={item.value} value={item}>
+                                  <div className="min-w-0">
+                                    <div className="truncate font-medium">{item.label}</div>
+                                    <div className="truncate text-[11px] text-muted-foreground">
+                                      {item.value} • {item.status}
+                                    </div>
+                                  </div>
+                                </ComboboxItem>
+                              )}
+                            </ComboboxCollection>
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    ) : (
+                      <Input disabled placeholder="Add a task first" value="" />
+                    );
+                  }}
+                </form.Field>
               </SectionCard>
 
               <SectionCard
@@ -202,64 +324,64 @@ export function CreateTaskDialog({
                 eyebrow="Relationships"
                 title="Blocked By"
               >
-                {hasTaskRelationOptions ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                      <span>{form.blockedBy.length} selected</span>
-                    </div>
-                    <Combobox
-                      items={relationItems}
-                      multiple
-                      onValueChange={(items) => {
-                        const nextIds = items.map((item) => item.value);
-                        const currentIds = new Set(form.blockedBy);
+                <form.Field name="blockedBy">
+                  {(field) => {
+                    const selectedBlockedItems = relationItems.filter((item) =>
+                      field.state.value.includes(item.value),
+                    );
 
-                        for (const currentId of form.blockedBy) {
-                          if (!nextIds.includes(currentId)) {
-                            onToggleBlockedBy(currentId, false);
-                          }
-                        }
-
-                        for (const nextId of nextIds) {
-                          if (!currentIds.has(nextId)) {
-                            onToggleBlockedBy(nextId, true);
-                          }
-                        }
-                      }}
-                      value={selectedBlockedItems}
-                    >
-                      <ComboboxChips
-                        className="min-h-11 rounded-[1rem] bg-background/80"
-                        ref={blockersAnchorRef}
-                      >
-                        <ComboboxChipsInput
-                          className="text-sm"
-                          disabled={isPending}
-                          placeholder={form.blockedBy.length > 0 ? "" : "Search for blocking tasks"}
-                        />
-                      </ComboboxChips>
-                      <ComboboxContent anchor={blockersAnchorRef}>
-                        <ComboboxEmpty>No tasks match that search.</ComboboxEmpty>
-                        <ComboboxList>
-                          <ComboboxCollection>
-                            {(item: (typeof relationItems)[number]) => (
-                              <ComboboxItem key={item.value} value={item}>
-                                <div className="min-w-0">
-                                  <div className="truncate font-medium">{item.label}</div>
-                                  <div className="truncate text-[11px] text-muted-foreground">
-                                    {item.value} • {item.status}
-                                  </div>
-                                </div>
-                              </ComboboxItem>
-                            )}
-                          </ComboboxCollection>
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
-                  </div>
-                ) : (
-                  <Input disabled placeholder="Add another task first" value="" />
-                )}
+                    return hasTaskRelationOptions ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                          <span>{field.state.value.length} selected</span>
+                        </div>
+                        <Combobox
+                          items={relationItems}
+                          multiple
+                          onValueChange={(items) => {
+                            field.handleChange(items.map((item) => item.value));
+                            if (error) {
+                              setError(null);
+                            }
+                          }}
+                          value={selectedBlockedItems}
+                        >
+                          <ComboboxChips
+                            className="min-h-11 rounded-[1rem] bg-background/80"
+                            ref={blockersAnchorRef}
+                          >
+                            <ComboboxChipsInput
+                              className="text-sm"
+                              disabled={isSubmitting}
+                              placeholder={
+                                field.state.value.length > 0 ? "" : "Search for blocking tasks"
+                              }
+                            />
+                          </ComboboxChips>
+                          <ComboboxContent anchor={blockersAnchorRef}>
+                            <ComboboxEmpty>No tasks match that search.</ComboboxEmpty>
+                            <ComboboxList>
+                              <ComboboxCollection>
+                                {(item: (typeof relationItems)[number]) => (
+                                  <ComboboxItem key={item.value} value={item}>
+                                    <div className="min-w-0">
+                                      <div className="truncate font-medium">{item.label}</div>
+                                      <div className="truncate text-[11px] text-muted-foreground">
+                                        {item.value} • {item.status}
+                                      </div>
+                                    </div>
+                                  </ComboboxItem>
+                                )}
+                              </ComboboxCollection>
+                            </ComboboxList>
+                          </ComboboxContent>
+                        </Combobox>
+                      </div>
+                    ) : (
+                      <Input disabled placeholder="Add another task first" value="" />
+                    );
+                  }}
+                </form.Field>
               </SectionCard>
             </div>
 
@@ -273,16 +395,16 @@ export function CreateTaskDialog({
           <div className="border-t border-border/75 px-6 py-5">
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
-                disabled={isPending}
-                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+                onClick={() => handleOpenChange(false)}
                 type="button"
                 variant="outline"
               >
                 Cancel
               </Button>
-              <Button className="rounded-full px-5" disabled={isPending} type="submit">
+              <Button className="rounded-full px-5" disabled={isSubmitting} type="submit">
                 <Plus className="size-4" />
-                <span>{isPending ? "Adding..." : "Add Task"}</span>
+                <span>{isSubmitting ? "Adding..." : "Add Task"}</span>
               </Button>
             </div>
           </div>
@@ -290,4 +412,14 @@ export function CreateTaskDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function getFieldErrorMessage(errors: unknown[]): string | null {
+  for (const error of errors) {
+    if (typeof error === "string" && error.trim()) {
+      return error;
+    }
+  }
+
+  return null;
 }

@@ -6,11 +6,9 @@ import {
   CreateTaskDialog,
   EmptyProjectBoard,
   filterBoardTasks,
-  getTaskMutationErrorMessage,
   groupSubtasksByParentId,
   groupTasksByColumn,
   indexTasksById,
-  INITIAL_CREATE_TASK_FORM,
   KANBAN_COLUMNS,
   KanbanColumn,
   ProjectBoardHeader,
@@ -18,13 +16,11 @@ import {
   summarizeBoardTasks,
   summarizeSubtaskProgress,
   TaskDetailsDialog,
-  type CreateTaskFormState,
   type KanbanColumnKey,
   type TaskFilterKey,
 } from "@/components/project-board";
 import { useProjects } from "@/contexts/projects-context";
 import { useTasks } from "@/contexts/tasks-context";
-import { createProjectTask } from "@/lib/tasks-service";
 
 export const Route = createFileRoute("/projects/$projectId")({
   component: RouteComponent,
@@ -35,12 +31,6 @@ function RouteComponent() {
   const { isProjectsInitialized, projects, selectProject } = useProjects();
   const { projectTasks } = useTasks();
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
-  const [createTaskForm, setCreateTaskForm] = useState<CreateTaskFormState>({
-    ...INITIAL_CREATE_TASK_FORM,
-  });
-  const [createTaskError, setCreateTaskError] = useState<string | null>(null);
-  const [createTaskNameError, setCreateTaskNameError] = useState<string | null>(null);
-  const [isCreateTaskPending, setIsCreateTaskPending] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskFilter, setTaskFilter] = useState<TaskFilterKey>("all");
@@ -120,95 +110,11 @@ function RouteComponent() {
   }, [selectedTask, subtasksByParentId]);
 
   const taskRelationOptions = sortedProjectTasks;
-  const hasTaskRelationOptions = taskRelationOptions.length > 0;
 
   const getSubtaskProgress = (taskId: string) => subtaskProgressByTaskId.get(taskId);
 
-  const resetCreateTaskForm = () => {
-    setCreateTaskForm({ ...INITIAL_CREATE_TASK_FORM });
-    setCreateTaskError(null);
-    setCreateTaskNameError(null);
-    setIsCreateTaskPending(false);
-  };
-
   const openCreateTaskDialog = () => {
-    resetCreateTaskForm();
     setIsCreateTaskOpen(true);
-  };
-
-  const handleCreateTaskOpenChange = (open: boolean) => {
-    if (!open && isCreateTaskPending) {
-      return;
-    }
-
-    if (!open) {
-      resetCreateTaskForm();
-      setIsCreateTaskOpen(false);
-      return;
-    }
-
-    setIsCreateTaskOpen(true);
-  };
-
-  const updateCreateTaskForm = <K extends keyof CreateTaskFormState>(
-    field: K,
-    value: CreateTaskFormState[K],
-  ) => {
-    setCreateTaskForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const toggleBlockedByTask = (taskId: string, checked: boolean) => {
-    setCreateTaskForm((current) => {
-      const nextBlockedBy = checked
-        ? [...new Set([...current.blockedBy, taskId])]
-        : current.blockedBy.filter((currentTaskId) => currentTaskId !== taskId);
-
-      return {
-        ...current,
-        blockedBy: nextBlockedBy,
-      };
-    });
-  };
-
-  const handleCreateTaskSubmit = async () => {
-    if (isCreateTaskPending) {
-      return;
-    }
-
-    if (!routeProject) {
-      setCreateTaskError("Choose a project before you add a task.");
-      return;
-    }
-
-    const trimmedName = createTaskForm.name.trim();
-    if (!trimmedName) {
-      setCreateTaskNameError("Enter a task title.");
-      return;
-    }
-
-    setCreateTaskNameError(null);
-    setCreateTaskError(null);
-    setIsCreateTaskPending(true);
-
-    try {
-      const parsedPriority = Number.parseInt(createTaskForm.priority.trim(), 10);
-      await createProjectTask(routeProject.path, {
-        name: trimmedName,
-        description: createTaskForm.description.trim() || null,
-        priority: Number.isNaN(parsedPriority) ? 1 : parsedPriority,
-        parentId: createTaskForm.parentId || null,
-        blockedBy: createTaskForm.blockedBy,
-      });
-      setIsCreateTaskOpen(false);
-      resetCreateTaskForm();
-    } catch (error) {
-      setCreateTaskError(getTaskMutationErrorMessage(error));
-    } finally {
-      setIsCreateTaskPending(false);
-    }
   };
 
   const openTaskDetails = (taskId: string) => {
@@ -284,26 +190,11 @@ function RouteComponent() {
       </div>
 
       <CreateTaskDialog
-        error={createTaskError}
-        form={createTaskForm}
-        hasTaskRelationOptions={hasTaskRelationOptions}
-        isPending={isCreateTaskPending}
-        nameError={createTaskNameError}
-        onFormChange={updateCreateTaskForm}
-        onNameInput={(value) => {
-          updateCreateTaskForm("name", value);
-          if (createTaskNameError) {
-            setCreateTaskNameError(null);
-          }
-        }}
-        onOpenChange={handleCreateTaskOpenChange}
-        onSubmit={() => {
-          void handleCreateTaskSubmit();
-        }}
-        onToggleBlockedBy={toggleBlockedByTask}
         open={isCreateTaskOpen}
         projectName={routeProject?.name ?? "this project"}
+        projectPath={routeProject?.path ?? null}
         relationOptions={taskRelationOptions}
+        setOpen={setIsCreateTaskOpen}
       />
 
       <TaskDetailsDialog
