@@ -23,7 +23,7 @@ type ProjectsContextValue = {
   isProjectsInitialized: boolean;
   selectedProjectId: string | null;
   selectedProjectName: string;
-  selectProject: (projectId: string) => void;
+  selectProject: (projectId: string | null) => void;
   setProjectTaskCount: (projectPath: string, taskCount: number) => void;
   reloadProjects: () => Promise<void>;
   openProject: () => Promise<void>;
@@ -73,7 +73,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     });
   }, [ensureSelection]);
 
-  const selectProject = useCallback((projectId: string) => {
+  const selectProject = useCallback((projectId: string | null) => {
     setSelectedProjectId(projectId);
   }, []);
 

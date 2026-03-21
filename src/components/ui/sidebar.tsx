@@ -28,7 +28,8 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
-const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+const SIDEBAR_KEYBOARD_SHORTCUT = "t"
+export const SIDEBAR_KEYBOARD_SHORTCUT_LABEL = "Ctrl+T / Cmd+T"
 export const SIDEBAR_TOGGLE_EVENT = "dextop:sidebar-toggle"
 
 type SidebarContextProps = {
@@ -96,8 +97,8 @@ function SidebarProvider({
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
+        event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
+        (event.ctrlKey || event.metaKey)
       ) {
         event.preventDefault()
         toggleSidebar()

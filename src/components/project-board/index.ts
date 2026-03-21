@@ -16,4 +16,5 @@ export { EmptyProjectBoard } from "./empty-project-board";
 export { KanbanColumn } from "./kanban-column";
 export { ProjectBoardHeader } from "./project-board-header";
 export { ProjectBoardPlaceholder } from "./project-board-placeholder";
+export { ProjectBoardView } from "./project-board-view";
 export { TaskDetailsDialog } from "./task-details-dialog";

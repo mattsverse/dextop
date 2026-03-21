@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
 import { FolderKanban, Plus } from "lucide-react";
 import {
   Sidebar,
@@ -14,10 +13,13 @@ import {
 import { useProjects } from "@/contexts/projects-context";
 import { ProjectListItem } from "./project-list-item";
 
-export function ProjectSidebar() {
-  const navigate = useNavigate();
-  const { deleteProject, openProject, openProjectInSeparateWindow, projects, selectedProjectId } =
-    useProjects();
+type ProjectSidebarProps = {
+  selectedProjectId: string | null;
+  onSelectProject: (projectId: string) => void;
+};
+
+export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
+  const { deleteProject, openProject, openProjectInSeparateWindow, projects } = useProjects();
 
   return (
     <Sidebar
@@ -58,10 +60,7 @@ export function ProjectSidebar() {
                     void openProjectInSeparateWindow(project.id);
                   }}
                   onSelect={() => {
-                    navigate({
-                      to: "/projects/$projectId",
-                      params: { projectId: project.id },
-                    });
+                    onSelectProject(project.id);
                   }}
                   project={project}
                 />

@@ -18,9 +18,9 @@ import {
 } from "@/lib/tasks-service";
 
 type TasksContextValue = {
-  projectTasks: DexTask[];
+  projectTasksByPath: Record<string, DexTask[]>;
+  getProjectTasks: (projectPath: string | null) => DexTask[];
   initializeTasksStore: () => Promise<void>;
-  setActiveProjectPath: (projectPath: string | null) => Promise<void>;
   disposeTasksStore: () => void;
 };
 
@@ -32,26 +32,22 @@ function countOpenTasks(tasks: DexTask[]): number {
 
 export function TasksProvider({ children }: { children: ReactNode }) {
   const { projects, setProjectTaskCount } = useProjects();
-  const [projectTasks, setProjectTasks] = useState<DexTask[]>([]);
-  const [activeProjectPath, setActiveProjectPathState] = useState<string | null>(null);
+  const [projectTasksByPath, setProjectTasksByPath] = useState<Record<string, DexTask[]>>({});
   const [isInitialized, setIsInitialized] = useState(false);
 
   const unlistenTaskUpdatesRef = useRef<(() => void) | undefined>(undefined);
   const initializationPromiseRef = useRef<Promise<void> | undefined>(undefined);
   const isInitializedRef = useRef(false);
   const watchedProjectPathsRef = useRef<Set<string>>(new Set<string>());
-  const activeProjectPathRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    activeProjectPathRef.current = activeProjectPath;
-  }, [activeProjectPath]);
+  const projectTasksByPathRef = useRef<Record<string, DexTask[]>>({});
+  projectTasksByPathRef.current = projectTasksByPath;
 
   const applyTasks = useCallback(
     (projectPath: string, tasks: DexTask[]) => {
-      if (activeProjectPathRef.current === projectPath) {
-        setProjectTasks(tasks);
-      }
-
+      setProjectTasksByPath((currentTasks) => ({
+        ...currentTasks,
+        [projectPath]: tasks,
+      }));
       setProjectTaskCount(projectPath, countOpenTasks(tasks));
     },
     [setProjectTaskCount],
@@ -101,6 +97,15 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     });
   }, [isInitialized, projects, syncProjectWatches]);
 
+  useEffect(() => {
+    const projectPaths = new Set(projects.map((project) => project.path));
+    setProjectTasksByPath((currentTasks) =>
+      Object.fromEntries(
+        Object.entries(currentTasks).filter(([projectPath]) => projectPaths.has(projectPath)),
+      ),
+    );
+  }, [projects]);
+
   const initializeTasksStore = useCallback(async () => {
     if (isInitializedRef.current) {
       return;
@@ -125,53 +130,38 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
   }, [applyTasks]);
 
-  const setActiveProjectPath = useCallback(
-    async (projectPath: string | null) => {
-      if (projectPath === activeProjectPathRef.current) {
-        return;
-      }
-
-      activeProjectPathRef.current = projectPath;
-      setActiveProjectPathState(projectPath);
-
-      if (!projectPath) {
-        setProjectTasks([]);
-        return;
-      }
-
-      const tasks = await watchProjectTasks(projectPath);
-      if (activeProjectPathRef.current !== projectPath) {
-        return;
-      }
-
-      applyTasks(projectPath, tasks);
-    },
-    [applyTasks],
-  );
-
   const disposeTasksStore = useCallback(() => {
     unlistenTaskUpdatesRef.current?.();
     unlistenTaskUpdatesRef.current = undefined;
     initializationPromiseRef.current = undefined;
     isInitializedRef.current = false;
     watchedProjectPathsRef.current = new Set<string>();
-    activeProjectPathRef.current = null;
     setIsInitialized(false);
     void clearProjectTasksWatch().catch((error) => {
       console.error("Failed to clear project task watcher", error);
     });
-    setProjectTasks([]);
-    setActiveProjectPathState(null);
+    setProjectTasksByPath({});
   }, []);
+
+  const getProjectTasks = useCallback(
+    (projectPath: string | null) => {
+      if (!projectPath) {
+        return [];
+      }
+
+      return projectTasksByPathRef.current[projectPath] ?? [];
+    },
+    [],
+  );
 
   const value = useMemo<TasksContextValue>(
     () => ({
-      projectTasks,
+      projectTasksByPath,
+      getProjectTasks,
       initializeTasksStore,
-      setActiveProjectPath,
       disposeTasksStore,
     }),
-    [disposeTasksStore, initializeTasksStore, projectTasks, setActiveProjectPath],
+    [disposeTasksStore, getProjectTasks, initializeTasksStore, projectTasksByPath],
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;
