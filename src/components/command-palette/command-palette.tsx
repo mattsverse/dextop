@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
@@ -47,6 +47,15 @@ export function CommandPalette() {
   const { resolvedTheme, toggleThemePreference } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const isSidebarAvailable = location.pathname.startsWith("/projects");
+  const toggleFullscreen = useCallback(async () => {
+    if (!isTauri()) {
+      return;
+    }
+
+    const appWindow = getCurrentWindow();
+    const isFullscreen = await appWindow.isFullscreen();
+    await appWindow.setFullscreen(!isFullscreen);
+  }, []);
 
   const commands = useMemo<PaletteCommand[]>(
     () => [
@@ -83,15 +92,7 @@ export function CommandPalette() {
         label: "Toggle fullscreen",
         group: "Window",
         icon: Maximize,
-        onSelect: async () => {
-          if (!isTauri()) {
-            return;
-          }
-
-          const appWindow = getCurrentWindow();
-          const isFullscreen = await appWindow.isFullscreen();
-          await appWindow.setFullscreen(!isFullscreen);
-        },
+        onSelect: toggleFullscreen,
         disabled: !isTauri(),
         keywords: ["fullscreen", "window", "screen", "maximize"],
         shortcutLabel: "F11 / Ctrl+Cmd+F",
@@ -111,11 +112,11 @@ export function CommandPalette() {
     ],
     [
       isSidebarAvailable,
-      location.pathname,
       openProject,
       openProjectInSeparateWindow,
       resolvedTheme,
       selectedProjectId,
+      toggleFullscreen,
       toggleThemePreference,
     ],
   );
@@ -201,20 +202,10 @@ export function CommandPalette() {
     },
   );
 
-  const handleToggleFullscreen = async () => {
-    if (!isTauri()) {
-      return;
-    }
-
-    const appWindow = getCurrentWindow();
-    const isFullscreen = await appWindow.isFullscreen();
-    await appWindow.setFullscreen(!isFullscreen);
-  };
-
   useHotkey(
     "F11",
     () => {
-      void handleToggleFullscreen();
+      void toggleFullscreen();
     },
     {
       enabled: !isOpen && isTauri(),
@@ -226,7 +217,7 @@ export function CommandPalette() {
   useHotkey(
     "Control+Meta+F",
     () => {
-      void handleToggleFullscreen();
+      void toggleFullscreen();
     },
     {
       enabled: !isOpen && isTauri(),
