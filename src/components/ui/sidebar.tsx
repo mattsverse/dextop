@@ -29,7 +29,7 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "t"
-export const SIDEBAR_KEYBOARD_SHORTCUT_LABEL = "Ctrl+T"
+export const SIDEBAR_KEYBOARD_SHORTCUT_LABEL = "Ctrl+T / Cmd+T"
 export const SIDEBAR_TOGGLE_EVENT = "dextop:sidebar-toggle"
 
 type SidebarContextProps = {
@@ -98,7 +98,7 @@ function SidebarProvider({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
-        event.ctrlKey
+        (event.ctrlKey || event.metaKey)
       ) {
         event.preventDefault()
         toggleSidebar()

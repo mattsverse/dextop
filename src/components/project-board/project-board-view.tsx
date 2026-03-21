@@ -71,8 +71,8 @@ export function ProjectBoardView({ project, projectTasks }: ProjectBoardViewProp
       return null;
     }
 
-    return sortedProjectTasks.find((task) => task.id === selectedTaskId) ?? null;
-  }, [selectedTaskId, sortedProjectTasks]);
+    return taskById.get(selectedTaskId) ?? null;
+  }, [selectedTaskId, taskById]);
 
   const selectedTaskParent = useMemo(() => {
     if (!selectedTask?.parentId) {

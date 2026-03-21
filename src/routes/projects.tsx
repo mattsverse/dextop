@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ProjectsWorkspace } from "@/components/projects-workspace";
 import { useTasks } from "@/contexts/tasks-context";
@@ -26,6 +26,7 @@ function RouteComponent() {
   const navigate = useNavigate({ from: "/projects" });
   const search = Route.useSearch();
   const { disposeTasksStore, initializeTasksStore } = useTasks();
+  const clearingProjectIdRef = useRef(false);
 
   useEffect(() => {
     void initializeTasksStore().catch((error) => {
@@ -39,9 +40,15 @@ function RouteComponent() {
 
   useEffect(() => {
     if (!search.projectId) {
+      clearingProjectIdRef.current = false;
       return;
     }
 
+    if (clearingProjectIdRef.current) {
+      return;
+    }
+
+    clearingProjectIdRef.current = true;
     navigate({
       replace: true,
       search: (current) => ({

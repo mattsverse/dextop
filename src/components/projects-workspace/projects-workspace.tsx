@@ -1,6 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { useHotkeySequence } from "@tanstack/react-hotkeys";
-import type { HotkeySequence } from "@tanstack/hotkeys";
+import { useEffect, useMemo, useState } from "react";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { Columns2, Rows2, SquareDashed, X } from "lucide-react";
 import { ProjectBoardPlaceholder, ProjectBoardView } from "@/components/project-board";
 import { ProjectSidebar } from "@/components/project-sidebar";
@@ -40,14 +39,66 @@ function getPaneCountLabel(count: number): string {
   return count === 1 ? "1 pane open" : `${count} panes open`;
 }
 
-const TMUX_SPLIT_SIDE_BY_SIDE_SEQUENCE = ["Control+B", "%"] as unknown as HotkeySequence;
-const TMUX_SPLIT_STACKED_SEQUENCE = ["Control+B", '"'] as unknown as HotkeySequence;
-const TMUX_CLOSE_SEQUENCE = ["Control+B", "X"] as HotkeySequence;
-const TMUX_NEXT_PANE_SEQUENCE = ["Control+B", "O"] as HotkeySequence;
-const TMUX_MOVE_LEFT_SEQUENCE = ["Control+B", "ArrowLeft"] as HotkeySequence;
-const TMUX_MOVE_RIGHT_SEQUENCE = ["Control+B", "ArrowRight"] as HotkeySequence;
-const TMUX_MOVE_UP_SEQUENCE = ["Control+B", "ArrowUp"] as HotkeySequence;
-const TMUX_MOVE_DOWN_SEQUENCE = ["Control+B", "ArrowDown"] as HotkeySequence;
+const TMUX_PREFIX_HOTKEY = "Control+B";
+const TMUX_PREFIX_TIMEOUT_MS = 1200;
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  return Boolean(
+    target.closest(
+      'input, textarea, select, [role="combobox"], [role="textbox"], [contenteditable="true"]',
+    ),
+  );
+}
+
+function getTmuxWorkspaceCommand(key: string): WorkspaceCommand | null {
+  if (key === "%") {
+    return "split-horizontal";
+  }
+
+  if (key === '"') {
+    return "split-vertical";
+  }
+
+  if (key === "ArrowLeft") {
+    return "focus-left";
+  }
+
+  if (key === "ArrowRight") {
+    return "focus-right";
+  }
+
+  if (key === "ArrowUp") {
+    return "focus-up";
+  }
+
+  if (key === "ArrowDown") {
+    return "focus-down";
+  }
+
+  const normalizedKey = key.toLowerCase();
+
+  if (normalizedKey === "x") {
+    return "close-pane";
+  }
+
+  if (normalizedKey === "o") {
+    return "next-pane";
+  }
+
+  return null;
+}
+
+function isModifierKey(key: string): boolean {
+  return key === "Shift" || key === "Control" || key === "Alt" || key === "Meta";
+}
 
 function WorkspacePanePlaceholder() {
   const { projects } = useProjects();
@@ -147,23 +198,23 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
 
         <div className="flex items-center gap-1">
           <Button
-            aria-label="Split pane vertically"
+            aria-label="Split pane side by side"
             onClick={() => {
               splitPane(node.id, "horizontal");
             }}
             size="icon-xs"
-            title={`Split vertically (${SPLIT_SIDE_BY_SIDE_LABEL})`}
+            title={`Split pane side by side (${SPLIT_SIDE_BY_SIDE_LABEL})`}
             variant="ghost"
           >
             <Columns2 />
           </Button>
           <Button
-            aria-label="Split pane horizontally"
+            aria-label="Split pane stacked"
             onClick={() => {
               splitPane(node.id, "vertical");
             }}
             size="icon-xs"
-            title={`Split horizontally (${SPLIT_STACKED_LABEL})`}
+            title={`Split pane stacked (${SPLIT_STACKED_LABEL})`}
             variant="ghost"
           >
             <Rows2 />
@@ -208,6 +259,7 @@ function ProjectsWorkspaceShell() {
     () => projects.find((project) => project.id === focusedProjectId) ?? null,
     [focusedProjectId, projects],
   );
+  const [isTmuxPrefixActive, setIsTmuxPrefixActive] = useState(false);
 
   useEffect(() => {
     selectProject(focusedProjectId);
@@ -263,109 +315,56 @@ function ProjectsWorkspaceShell() {
     };
   }, [closeFocusedPane, focusNextPane, moveFocus, splitFocusedPane]);
 
-  useHotkeySequence(
-    TMUX_SPLIT_SIDE_BY_SIDE_SEQUENCE,
+  useHotkey(
+    TMUX_PREFIX_HOTKEY,
     () => {
-      splitFocusedPane("horizontal");
+      setIsTmuxPrefixActive(true);
     },
     {
       enabled: isWorkspaceReady,
       ignoreInputs: true,
       preventDefault: true,
-      timeout: 1200,
     },
   );
 
-  useHotkeySequence(
-    TMUX_SPLIT_STACKED_SEQUENCE,
-    () => {
-      splitFocusedPane("vertical");
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+  useEffect(() => {
+    if (!isWorkspaceReady || !isTmuxPrefixActive) {
+      return;
+    }
 
-  useHotkeySequence(
-    TMUX_CLOSE_SEQUENCE,
-    () => {
-      closeFocusedPane();
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+    const handleTmuxSequence = (event: KeyboardEvent) => {
+      if (isInteractiveTarget(event.target)) {
+        setIsTmuxPrefixActive(false);
+        return;
+      }
 
-  useHotkeySequence(
-    TMUX_NEXT_PANE_SEQUENCE,
-    () => {
-      focusNextPane();
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+      if (isModifierKey(event.key)) {
+        return;
+      }
 
-  useHotkeySequence(
-    TMUX_MOVE_LEFT_SEQUENCE,
-    () => {
-      moveFocus("left");
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+      const command = getTmuxWorkspaceCommand(event.key);
+      setIsTmuxPrefixActive(false);
 
-  useHotkeySequence(
-    TMUX_MOVE_RIGHT_SEQUENCE,
-    () => {
-      moveFocus("right");
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+      if (!command) {
+        return;
+      }
 
-  useHotkeySequence(
-    TMUX_MOVE_UP_SEQUENCE,
-    () => {
-      moveFocus("up");
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+      event.preventDefault();
+      window.dispatchEvent(
+        new CustomEvent<WorkspaceCommand>(WORKSPACE_COMMAND_EVENT, { detail: command }),
+      );
+    };
 
-  useHotkeySequence(
-    TMUX_MOVE_DOWN_SEQUENCE,
-    () => {
-      moveFocus("down");
-    },
-    {
-      enabled: isWorkspaceReady,
-      ignoreInputs: true,
-      preventDefault: true,
-      timeout: 1200,
-    },
-  );
+    const timeoutId = window.setTimeout(() => {
+      setIsTmuxPrefixActive(false);
+    }, TMUX_PREFIX_TIMEOUT_MS);
+
+    window.addEventListener("keydown", handleTmuxSequence);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("keydown", handleTmuxSequence);
+    };
+  }, [isTmuxPrefixActive, isWorkspaceReady]);
 
   if (!isWorkspaceReady) {
     return <ProjectBoardPlaceholder isProjectsInitialized={false} />;

@@ -39,6 +39,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const initializationPromiseRef = useRef<Promise<void> | undefined>(undefined);
   const isInitializedRef = useRef(false);
   const watchedProjectPathsRef = useRef<Set<string>>(new Set<string>());
+  const projectTasksByPathRef = useRef<Record<string, DexTask[]>>({});
+  projectTasksByPathRef.current = projectTasksByPath;
 
   const applyTasks = useCallback(
     (projectPath: string, tasks: DexTask[]) => {
@@ -147,9 +149,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         return [];
       }
 
-      return projectTasksByPath[projectPath] ?? [];
+      return projectTasksByPathRef.current[projectPath] ?? [];
     },
-    [projectTasksByPath],
+    [],
   );
 
   const value = useMemo<TasksContextValue>(
