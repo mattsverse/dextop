@@ -11,6 +11,7 @@ import {
   PanelLeft,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Command,
   CommandDialog,
@@ -25,6 +26,7 @@ import {
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/ui/sidebar";
 import { useProjects } from "@/contexts/projects-context";
 import { useTheme } from "@/contexts/theme-context";
+import { processLogger } from "@/lib/logger";
 
 type CommandGroupKey = "Projects" | "Appearance" | "Window";
 
@@ -41,6 +43,18 @@ type PaletteCommand = {
 
 const GROUP_ORDER: CommandGroupKey[] = ["Projects", "Appearance", "Window"];
 
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "string" && error.trim().length > 0) {
+    return error;
+  }
+
+  return "Unexpected error";
+}
+
 export function CommandPalette() {
   const location = useLocation();
   const { openProject, openProjectInSeparateWindow, selectedProjectId } = useProjects();
@@ -56,6 +70,19 @@ export function CommandPalette() {
     const isFullscreen = await appWindow.isFullscreen();
     await appWindow.setFullscreen(!isFullscreen);
   }, []);
+  const safeExecute = useCallback(
+    async (action: () => void | Promise<void>, errorTitle: string) => {
+      try {
+        await action();
+      } catch (error) {
+        processLogger.error(errorTitle, error);
+        toast.error(errorTitle, {
+          description: toErrorMessage(error),
+        });
+      }
+    },
+    [],
+  );
 
   const commands = useMemo<PaletteCommand[]>(
     () => [
@@ -115,6 +142,7 @@ export function CommandPalette() {
       openProject,
       openProjectInSeparateWindow,
       resolvedTheme,
+      safeExecute,
       selectedProjectId,
       toggleFullscreen,
       toggleThemePreference,
@@ -136,7 +164,10 @@ export function CommandPalette() {
     }
 
     setIsOpen(false);
-    await command.onSelect();
+    await safeExecute(
+      async () => command.onSelect(),
+      `Failed to ${command.label.charAt(0).toLowerCase()}${command.label.slice(1)}`,
+    );
   };
 
   useHotkey(
@@ -165,7 +196,7 @@ export function CommandPalette() {
   useHotkey(
     "Mod+Shift+O",
     () => {
-      void openProject();
+      void safeExecute(() => openProject(), "Failed to add project");
     },
     {
       enabled: !isOpen,
@@ -181,7 +212,10 @@ export function CommandPalette() {
         return;
       }
 
-      void openProjectInSeparateWindow(selectedProjectId);
+      void safeExecute(
+        () => openProjectInSeparateWindow(selectedProjectId),
+        "Failed to open selected project in a separate window",
+      );
     },
     {
       enabled: !isOpen && Boolean(selectedProjectId),
@@ -193,7 +227,7 @@ export function CommandPalette() {
   useHotkey(
     "Mod+Shift+T",
     () => {
-      toggleThemePreference();
+      void safeExecute(() => toggleThemePreference(), "Failed to toggle theme");
     },
     {
       enabled: !isOpen,
@@ -205,7 +239,7 @@ export function CommandPalette() {
   useHotkey(
     "F11",
     () => {
-      void toggleFullscreen();
+      void safeExecute(() => toggleFullscreen(), "Failed to toggle fullscreen");
     },
     {
       enabled: !isOpen && isTauri(),
@@ -217,7 +251,7 @@ export function CommandPalette() {
   useHotkey(
     "Control+Meta+F",
     () => {
-      void toggleFullscreen();
+      void safeExecute(() => toggleFullscreen(), "Failed to toggle fullscreen");
     },
     {
       enabled: !isOpen && isTauri(),

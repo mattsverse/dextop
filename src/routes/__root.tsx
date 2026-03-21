@@ -3,6 +3,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { hotkeysDevtoolsPlugin } from "@tanstack/react-hotkeys-devtools";
 import { CommandPalette } from "@/components/command-palette";
 import { TopNavbar } from "@/components/top-navbar";
+import { Toaster } from "@/components/ui/sonner";
 import { UpdaterNotification } from "@/components/updater-notification";
 import { AppProviders } from "@/contexts/app-providers";
 import { TanStackDevtools } from "@tanstack/react-devtools";
@@ -23,6 +24,7 @@ function RootComponent() {
           </main>
         </div>
         <CommandPalette />
+        <Toaster />
         <UpdaterNotification />
       </AppProviders>
       <TanStackDevtools
