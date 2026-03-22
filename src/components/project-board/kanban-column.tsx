@@ -66,16 +66,18 @@ export function KanbanColumn({
           <p className="text-xs font-semibold text-foreground">{tasks.length}</p>
         </div>
       ) : (
-        <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
+        <div className="flex-1 overflow-y-auto px-3 py-3">
           {tasks.length > 0 ? (
-            tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                onOpen={() => onOpenTask(task.id)}
-                subtaskProgress={getSubtaskProgress(task.id)}
-                task={task}
-              />
-            ))
+            <div className="grid content-start gap-2">
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  onOpen={() => onOpenTask(task.id)}
+                  subtaskProgress={getSubtaskProgress(task.id)}
+                  task={task}
+                />
+              ))}
+            </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border/70 px-4 py-6 text-center">
               <p className="text-sm font-medium text-foreground">Nothing here</p>
