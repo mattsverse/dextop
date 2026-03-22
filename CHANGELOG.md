@@ -1,3 +1,30 @@
+## [0.2.0] - 2026-03-22
+
+### 🚀 Features
+
+- Switch to react
+- New style
+- Add command palette & shortcuts
+- Multiplexing window
+
+### 🐛 Bug Fixes
+
+- Rework
+- Better scoping for add task dialog
+- Duplicated code for fullscreen
+- Sonner & common error path for keys
+- Useless deps
+- Sidebar & multiplexer conflict
+- Commands
+- Card oacing in board column
+
+### 🚜 Refactor
+
+- Better component org
+
+### ⚙️ Miscellaneous Tasks
+
+- Update deps
 ## [0.1.0] - 2026-03-17
 
 ### 🚀 Features
