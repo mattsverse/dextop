@@ -7,7 +7,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatTaskDate, getTaskStatusLabel, getTaskStatusTone } from "./model";
-import { SectionCard, StatTile, statusBadgeVariants } from "./shared";
+import {
+  SectionCard,
+  StatTile,
+  boardDialogSurfaceClass,
+  boardSurfaceVariants,
+  interactivePillVariants,
+  metaPillVariants,
+  statusBadgeVariants,
+} from "./shared";
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -30,10 +38,14 @@ export function TaskDetailsDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="!flex !max-h-[82vh] !min-h-0 !w-[min(92vw,46rem)] !max-w-[46rem] !flex-col !overflow-hidden !rounded-[1.35rem] !border !border-border/80 !bg-panel !p-0 !text-foreground shadow-[0_28px_84px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_84px_rgba(2,6,23,0.46)]">
+      <DialogContent
+        className={`!flex !max-h-[82vh] !min-h-0 !w-[min(92vw,46rem)] !max-w-[46rem] !flex-col !overflow-hidden !p-0 !text-foreground ${boardDialogSurfaceClass}`}
+      >
         <DialogHeader className="gap-3 border-b border-border/75 px-6 py-5">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[11px] font-medium text-muted-foreground">Task details</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Task details
+            </p>
             {selectedTask ? (
               <span className={statusBadgeVariants({ tone: detailsTone })}>
                 {getTaskStatusLabel(selectedTask)}
@@ -52,20 +64,28 @@ export function TaskDetailsDialog({
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6">
             <div className="grid gap-3 sm:grid-cols-3">
               <StatTile
+                framed
                 label="Status"
                 tone={detailsTone}
                 value={getTaskStatusLabel(selectedTask)}
               />
               <StatTile
+                framed
                 label="Priority"
                 value={selectedTask.priority === null ? "Unset" : `P${selectedTask.priority}`}
               />
-              <StatTile label="Task ID" value={selectedTask.id} />
+              <StatTile
+                framed
+                label="Task ID"
+                value={selectedTask.id}
+                valueClassName="font-mono text-xs"
+              />
             </div>
 
             <SectionCard
               description="Use this to understand the task before looking at relationships."
               eyebrow="Description"
+              surface
               title="Task context"
             >
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
@@ -77,6 +97,7 @@ export function TaskDetailsDialog({
               <SectionCard
                 description="Open parent and child tasks directly from here."
                 eyebrow="Structure"
+                surface
                 title="Relationships"
               >
                 <div className="space-y-4 text-sm">
@@ -88,7 +109,7 @@ export function TaskDetailsDialog({
                       {selectedTask.parentId ? (
                         selectedTaskParent ? (
                           <button
-                            className="rounded-full border border-border/70 bg-background px-3 py-1.5 font-medium text-foreground transition-colors hover:border-primary/25 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                            className={interactivePillVariants()}
                             onClick={() => onOpenTask(selectedTaskParent.id)}
                             type="button"
                           >
@@ -114,7 +135,7 @@ export function TaskDetailsDialog({
                         {selectedTaskSubtasks.map((subtask) => (
                           <button
                             key={subtask.id}
-                            className="rounded-full border border-border/70 bg-background px-3 py-1.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/25 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                            className={interactivePillVariants()}
                             onClick={() => onOpenTask(subtask.id)}
                             type="button"
                           >
@@ -132,6 +153,7 @@ export function TaskDetailsDialog({
               <SectionCard
                 description="Use blockers to understand what is holding work up."
                 eyebrow="Dependencies"
+                surface
                 title="Blockers"
               >
                 <div className="space-y-4 text-sm">
@@ -142,10 +164,7 @@ export function TaskDetailsDialog({
                     <div className="mt-2 flex flex-wrap gap-2">
                       {selectedTask.blockedBy.length > 0 ? (
                         selectedTask.blockedBy.map((taskId) => (
-                          <span
-                            key={taskId}
-                            className="rounded-full border border-border/70 bg-background px-2.5 py-1 font-mono text-xs text-muted-foreground"
-                          >
+                          <span key={taskId} className={metaPillVariants({ mono: true })}>
                             {taskId}
                           </span>
                         ))
@@ -162,10 +181,7 @@ export function TaskDetailsDialog({
                     <div className="mt-2 flex flex-wrap gap-2">
                       {selectedTask.blocks.length > 0 ? (
                         selectedTask.blocks.map((taskId) => (
-                          <span
-                            key={taskId}
-                            className="rounded-full border border-border/70 bg-background px-2.5 py-1 font-mono text-xs text-muted-foreground"
-                          >
+                          <span key={taskId} className={metaPillVariants({ mono: true })}>
                             {taskId}
                           </span>
                         ))
@@ -181,6 +197,7 @@ export function TaskDetailsDialog({
             <SectionCard
               description="Use these timestamps to see when the task moved or changed."
               eyebrow="Timeline"
+              surface
               title="Timeline"
             >
               <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -204,7 +221,11 @@ export function TaskDetailsDialog({
             </SectionCard>
           </div>
         ) : (
-          <p className="m-6 rounded-[1rem] border border-[color:var(--status-warning-border)] bg-[color:var(--status-warning-bg)] px-4 py-3 text-sm text-[color:var(--status-warning-fg)]">
+          <p
+            className={`${boardSurfaceVariants({
+              tone: "subtle",
+            })} m-6 border-[color:var(--status-warning-border)] bg-[color:var(--status-warning-bg)] px-4 py-3 text-sm text-[color:var(--status-warning-fg)] shadow-none`}
+          >
             This task is no longer available.
           </p>
         )}

@@ -1,47 +1,47 @@
-import { KanbanSquare, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatShortPath } from "./model";
 
 type ProjectBoardHeaderProps = {
   projectName: string;
   projectPath: string;
-  totalTasks: number;
-  openTasks: number;
+  compact?: boolean;
   onAddTask: () => void;
 };
 
 export function ProjectBoardHeader({
   projectName,
   projectPath,
-  totalTasks,
-  openTasks,
+  compact = false,
   onAddTask,
 }: ProjectBoardHeaderProps) {
   return (
-    <section className="border-b border-border/70 pb-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0 space-y-2">
-          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-            <KanbanSquare className="size-3.5" />
-            <span>Board</span>
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-3xl">
-              {projectName}
-            </h1>
-            <p className="truncate text-sm text-muted-foreground">{formatShortPath(projectPath)}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>{openTasks} open</span>
-            <span>{totalTasks} total</span>
-          </div>
-        </div>
-
-        <Button className="h-10 rounded-full px-5" onClick={onAddTask}>
-          <Plus className="size-4" />
-          <span>Add Task</span>
-        </Button>
+    <section
+      className={cn(
+        "gap-3 border-b border-border/60 pb-3",
+        compact ? "flex flex-col" : "flex flex-col sm:flex-row sm:items-end sm:justify-between",
+      )}
+    >
+      <div className="min-w-0 space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Dex board
+        </p>
+        <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">
+          {projectName}
+        </h1>
+        <p className="truncate text-sm text-muted-foreground" title={projectPath}>
+          {formatShortPath(projectPath)}
+        </p>
       </div>
+
+      <Button
+        className={cn("min-h-11 rounded-full px-5", compact ? "w-full justify-center" : "sm:self-end")}
+        onClick={onAddTask}
+      >
+        <Plus className="size-4" />
+        <span>Add task</span>
+      </Button>
     </section>
   );
 }

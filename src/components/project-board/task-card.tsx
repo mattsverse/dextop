@@ -1,5 +1,6 @@
 import { getTaskStatusLabel, getTaskStatusTone, type SubtaskProgress } from "./model";
-import { statusTextVariants } from "./shared";
+import { cn } from "@/lib/utils";
+import { statusBadgeVariants } from "./shared";
 import type { DexTask } from "@/lib/tasks-service";
 
 type TaskCardProps = {
@@ -9,38 +10,36 @@ type TaskCardProps = {
 };
 
 export function TaskCard({ task, onOpen, subtaskProgress }: TaskCardProps) {
+  const metadata = [
+    task.priority !== null ? `P${task.priority}` : null,
+    subtaskProgress ? `${subtaskProgress.completed}/${subtaskProgress.total} subtasks` : null,
+  ].filter(Boolean);
+
   return (
     <button
-      className="block w-full rounded-lg border border-border/70 bg-background px-3 py-3 text-left transition-colors hover:border-foreground/15 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      className={cn(
+        "block w-full rounded-[0.95rem] border border-transparent bg-background/28 p-4 text-left transition-[border-color,background-color] hover:border-border/60 hover:bg-background/56 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+      )}
       onClick={onOpen}
       type="button"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-            <span className={statusTextVariants({ tone: getTaskStatusTone(task) })}>
-              {getTaskStatusLabel(task)}
-            </span>
-            {task.priority !== null ? (
-              <span className="text-muted-foreground">P{task.priority}</span>
-            ) : null}
-            {subtaskProgress ? (
-              <span className="text-muted-foreground">
-                {subtaskProgress.completed}/{subtaskProgress.total} subtasks
-              </span>
-            ) : null}
-          </div>
-          <h4 className="mt-1 min-w-0 text-sm font-semibold leading-snug text-foreground">
-            {task.name}
-          </h4>
+      <div className="min-w-0 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={statusBadgeVariants({ tone: getTaskStatusTone(task) })}>
+            {getTaskStatusLabel(task)}
+          </span>
+          {metadata.length > 0 ? <span className="text-xs text-muted-foreground">{metadata.join(" · ")}</span> : null}
         </div>
-      </div>
+        <h4 className="min-w-0 break-words text-sm font-semibold leading-snug text-foreground">
+          {task.name}
+        </h4>
 
-      {task.description ? (
-        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-          {task.description}
-        </p>
-      ) : null}
+        {task.description ? (
+          <p className="line-clamp-3 break-words text-sm leading-relaxed text-muted-foreground">
+            {task.description}
+          </p>
+        ) : null}
+      </div>
     </button>
   );
 }

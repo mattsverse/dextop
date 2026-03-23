@@ -1,12 +1,14 @@
 import { cva } from "class-variance-authority";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { TaskFilterKey } from "./model";
-import { StatTile } from "./shared";
 
-const filterButtonVariants = cva("rounded-full px-3 py-1.5 text-xs font-medium transition-colors", {
+const filterButtonVariants = cva("rounded-full border px-3 text-sm font-medium transition-colors", {
   variants: {
     active: {
-      true: "bg-foreground text-background",
-      false: "text-muted-foreground hover:bg-muted hover:text-foreground",
+      true: "border-border/80 bg-panel text-foreground",
+      false:
+        "border-border/60 bg-background/48 text-muted-foreground hover:bg-background/64 hover:text-foreground",
     },
   },
 });
@@ -18,13 +20,14 @@ type BoardSummaryRailProps = {
   doneTasks: number;
   activeFilter: TaskFilterKey;
   onFilterChange: (value: TaskFilterKey) => void;
+  compact?: boolean;
 };
 
 const FILTERS: Array<{ key: TaskFilterKey; label: string }> = [
   { key: "all", label: "All" },
   { key: "blocked", label: "Blocked" },
   { key: "inProgress", label: "In Progress" },
-  { key: "highPriority", label: "High Priority" },
+  { key: "highPriority", label: "High priority" },
 ];
 
 export function BoardSummaryRail({
@@ -34,28 +37,41 @@ export function BoardSummaryRail({
   doneTasks,
   activeFilter,
   onFilterChange,
+  compact = false,
 }: BoardSummaryRailProps) {
+  const summaryParts = [
+    `${totalTasks} total`,
+    `${openTasks} open`,
+    `${blockedTasks} blocked`,
+    `${doneTasks} done`,
+  ];
+
   return (
-    <section className="flex flex-col gap-3 border-b border-border/70 pb-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex flex-wrap gap-2">
+    <section
+      className={cn(
+        "flex flex-col gap-3 border-b border-border/60 pb-3",
+        compact ? "" : "lg:flex-row lg:items-center lg:justify-between",
+      )}
+    >
+      <div aria-label="Filter tasks" className="flex flex-wrap gap-2" role="toolbar">
         {FILTERS.map((filter) => (
-          <button
+          <Button
+            aria-pressed={filter.key === activeFilter}
             key={filter.key}
-            className={filterButtonVariants({ active: filter.key === activeFilter })}
+            className={cn(
+              filterButtonVariants({ active: filter.key === activeFilter }),
+              "h-11 px-4 text-sm",
+            )}
+            variant="ghost"
             onClick={() => onFilterChange(filter.key)}
             type="button"
           >
             {filter.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <StatTile label="Open" tone="active" value={String(openTasks)} />
-        <StatTile label="Blocked" tone="warning" value={String(blockedTasks)} />
-        <StatTile label="Done" tone="success" value={String(doneTasks)} />
-        <StatTile label="Total" tone="neutral" value={String(totalTasks)} />
-      </div>
+      <p className="text-sm text-muted-foreground">{summaryParts.join(" · ")}</p>
     </section>
   );
 }

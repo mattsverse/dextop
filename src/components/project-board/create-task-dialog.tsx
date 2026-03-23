@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createProjectTask } from "@/lib/tasks-service";
 import { getTaskMutationErrorMessage, getTaskStatusLabel } from "./model";
-import { SectionCard } from "./shared";
+import { SectionCard, boardDialogSurfaceClass, boardSurfaceVariants } from "./shared";
 
 type CreateTaskFormValues = {
   name: string;
@@ -131,9 +131,13 @@ export function CreateTaskDialog({
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogContent className="!flex !max-h-[min(88vh,48rem)] !min-h-0 !w-[min(92vw,38rem)] !max-w-[38rem] !flex-col !overflow-hidden !rounded-[1.25rem] !border !border-border/80 !bg-panel !p-0 !text-foreground shadow-[0_24px_72px_rgba(15,23,42,0.16)] dark:shadow-[0_24px_72px_rgba(2,6,23,0.42)]">
+      <DialogContent
+        className={`!flex !max-h-[min(88vh,48rem)] !min-h-0 !w-[min(92vw,38rem)] !max-w-[38rem] !flex-col !overflow-hidden !p-0 !text-foreground ${boardDialogSurfaceClass}`}
+      >
         <DialogHeader className="gap-2 border-b border-border/75 px-6 py-5">
-          <p className="text-[11px] font-medium text-muted-foreground">Add task</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Add task
+          </p>
           <DialogTitle className="text-2xl font-semibold tracking-tight text-foreground">
             Add a task to {projectName}
           </DialogTitle>
@@ -154,6 +158,7 @@ export function CreateTaskDialog({
                 description="Write a title that still makes sense in a busy board."
                 eyebrow="Core"
                 headerClassName="min-h-[5.5rem]"
+                surface
                 title="Task"
               >
                 <form.Field
@@ -208,6 +213,7 @@ export function CreateTaskDialog({
                 description="Lower numbers mean higher priority in dex."
                 eyebrow="Priority"
                 headerClassName="min-h-[5.5rem]"
+                surface
                 title="Priority"
               >
                 <form.Field name="priority">
@@ -237,6 +243,7 @@ export function CreateTaskDialog({
             <SectionCard
               description="Add scope, context, or a definition of done if the title is not enough."
               eyebrow="Context"
+              surface
               title="Description"
             >
               <form.Field name="description">
@@ -266,6 +273,7 @@ export function CreateTaskDialog({
                     : "You can add a parent task after this project has tasks."
                 }
                 eyebrow="Relationships"
+                surface
                 title="Parent Task"
               >
                 <form.Field name="parentId">
@@ -322,6 +330,7 @@ export function CreateTaskDialog({
                     : "Add another task before you set blockers."
                 }
                 eyebrow="Relationships"
+                surface
                 title="Blocked By"
               >
                 <form.Field name="blockedBy">
@@ -347,7 +356,7 @@ export function CreateTaskDialog({
                           value={selectedBlockedItems}
                         >
                           <ComboboxChips
-                            className="min-h-11 rounded-[1rem] bg-background/80"
+                            className="min-h-11 rounded-xl border-border/70 bg-background/80"
                             ref={blockersAnchorRef}
                           >
                             <ComboboxChipsInput
@@ -386,7 +395,11 @@ export function CreateTaskDialog({
             </div>
 
             {error ? (
-              <div className="rounded-[1rem] border border-destructive/25 bg-destructive/8 px-4 py-3 text-sm text-destructive">
+              <div
+                className={`${boardSurfaceVariants({
+                  tone: "subtle",
+                })} border-destructive/25 bg-destructive/8 px-4 py-3 text-sm text-destructive shadow-none`}
+              >
                 {error}
               </div>
             ) : null}

@@ -2,13 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { Columns2, Rows2, SquareDashed, X } from "lucide-react";
 import { ProjectBoardPlaceholder, ProjectBoardView } from "@/components/project-board";
+import { boardSurfaceVariants } from "@/components/project-board/shared";
 import { ProjectSidebar } from "@/components/project-sidebar";
 import { Button } from "@/components/ui/button";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useProjects } from "@/contexts/projects-context";
 import { useTasks } from "@/contexts/tasks-context";
@@ -105,17 +102,20 @@ function WorkspacePanePlaceholder() {
 
   return (
     <div className="flex h-full items-center justify-center px-6 py-8">
-      <section className="max-w-sm space-y-3 text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-dashed border-border/80 bg-panel/70 text-muted-foreground">
-          <SquareDashed className="size-5" />
-        </div>
+      <section className="max-w-sm space-y-3 text-left">
+        <SquareDashed className="size-5 text-muted-foreground" />
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">Empty pane</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">Pane is empty</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {projects.length > 0
-              ? "Pick a project from the sidebar to load it in this pane."
-              : "Add a project first, then assign it to this pane from the sidebar."}
+              ? "Pick a repo from the sidebar to load its dex board here."
+              : "Add a repo first, then open it in this pane."}
           </p>
+          {projects.length > 0 ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Split panes when you want to compare projects side by side.
+            </p>
+          ) : null}
         </div>
       </section>
     </div>
@@ -125,15 +125,12 @@ function WorkspacePanePlaceholder() {
 function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
   const { projects } = useProjects();
   const { getProjectTasks } = useTasks();
-  const {
-    closePane,
-    focusPane,
-    focusedPaneId,
-    splitPane,
-    updateSplitLayout,
-  } = useWorkspace();
+  const { closePane, focusPane, focusedPaneId, splitPane, updateSplitLayout } = useWorkspace();
 
-  const projectsById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+  const projectsById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects],
+  );
 
   if (node.kind === "split") {
     const [firstChild, secondChild] = node.children;
@@ -171,38 +168,40 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
     );
   }
 
-  const project = node.projectId ? projectsById.get(node.projectId) ?? null : null;
+  const project = node.projectId ? (projectsById.get(node.projectId) ?? null) : null;
   const projectTasks = getProjectTasks(project?.path ?? null);
   const isFocused = focusedPaneId === node.id;
 
   return (
     <section
       className={cn(
-        "flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[1.25rem] border border-border/80 bg-background/88 shadow-[0_18px_60px_rgba(15,23,42,0.08)] transition-shadow",
-        isFocused && "border-primary/50 shadow-[0_0_0_1px_rgba(59,130,246,0.25),0_20px_68px_rgba(15,23,42,0.12)]",
+        boardSurfaceVariants(),
+        "flex h-full min-h-0 min-w-0 flex-col transition-colors",
+        isFocused && "border-primary/30",
       )}
       data-focused={isFocused}
       onMouseDownCapture={() => {
         focusPane(node.id);
       }}
     >
-      <header className="flex items-center justify-between gap-3 border-b border-border/75 bg-panel/72 px-3 py-2.5">
+      <header className="flex items-center justify-between gap-3 border-b border-border/75 bg-background/52 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">
-            {project?.name ?? "No project selected"}
+            {project ? `Pane ${node.id.replace("pane-", "")}` : "Empty pane"}
           </p>
           <p className="truncate text-[11px] text-muted-foreground">
-            Pane {node.id.replace("pane-", "")} • {getPaneCountLabel(paneCount)}
+            {project ? "Project board" : "Select a repo from the sidebar"}
           </p>
         </div>
 
         <div className="flex items-center gap-1">
           <Button
             aria-label="Split pane side by side"
+            className="size-11 rounded-full"
             onClick={() => {
               splitPane(node.id, "horizontal");
             }}
-            size="icon-xs"
+            size="icon-lg"
             title={`Split pane side by side (${SPLIT_SIDE_BY_SIDE_LABEL})`}
             variant="ghost"
           >
@@ -210,10 +209,11 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
           </Button>
           <Button
             aria-label="Split pane stacked"
+            className="size-11 rounded-full"
             onClick={() => {
               splitPane(node.id, "vertical");
             }}
-            size="icon-xs"
+            size="icon-lg"
             title={`Split pane stacked (${SPLIT_STACKED_LABEL})`}
             variant="ghost"
           >
@@ -221,11 +221,12 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
           </Button>
           <Button
             aria-label="Close pane"
+            className="size-11 rounded-full"
             disabled={paneCount <= 1}
             onClick={() => {
               closePane(node.id);
             }}
-            size="icon-xs"
+            size="icon-lg"
             title={`Close pane (${CLOSE_PANE_LABEL})`}
             variant="ghost"
           >
@@ -235,14 +236,18 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
       </header>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {project ? <ProjectBoardView project={project} projectTasks={projectTasks} /> : <WorkspacePanePlaceholder />}
+        {project ? (
+          <ProjectBoardView project={project} projectTasks={projectTasks} />
+        ) : (
+          <WorkspacePanePlaceholder />
+        )}
       </div>
     </section>
   );
 }
 
 function ProjectsWorkspaceShell() {
-  const { projects, selectProject } = useProjects();
+  const { selectProject } = useProjects();
   const {
     assignProjectToFocusedPane,
     focusedProjectId,
@@ -255,10 +260,6 @@ function ProjectsWorkspaceShell() {
     closeFocusedPane,
   } = useWorkspace();
 
-  const focusedProject = useMemo(
-    () => projects.find((project) => project.id === focusedProjectId) ?? null,
-    [focusedProjectId, projects],
-  );
   const [isTmuxPrefixActive, setIsTmuxPrefixActive] = useState(false);
 
   useEffect(() => {
@@ -378,17 +379,14 @@ function ProjectsWorkspaceShell() {
         }}
         selectedProjectId={focusedProjectId}
       />
-      <SidebarInset className="min-w-0 flex-1 overflow-y-auto border border-border/70 bg-background/70 backdrop-blur">
+      <SidebarInset className="min-w-0 flex-1 overflow-y-auto border border-border/70 bg-background/74 backdrop-blur">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border/75 bg-background/82 px-4 backdrop-blur-xl">
           <SidebarTrigger className="rounded-full border border-border/75 bg-panel text-muted-foreground hover:bg-background hover:text-foreground" />
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Workspace</p>
-            <p className="truncate text-sm font-semibold text-foreground">
-              {focusedProject?.name ?? "Focused pane is empty"}
-            </p>
-          </div>
+          <p className="truncate text-sm font-semibold text-foreground">Workspace</p>
           <div className="ml-auto hidden text-right md:block">
-            <p className="text-[11px] font-medium text-foreground">{getPaneCountLabel(panes.length)}</p>
+            <p className="text-[11px] font-medium text-foreground">
+              {getPaneCountLabel(panes.length)}
+            </p>
             <p className="text-[11px] text-muted-foreground">
               {TMUX_PREFIX_LABEL} then % / " / x / o / arrows
             </p>

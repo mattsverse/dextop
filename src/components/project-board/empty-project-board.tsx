@@ -8,20 +8,21 @@ type EmptyProjectBoardProps = {
 
 export function EmptyProjectBoard({ projectName, onAddTask }: EmptyProjectBoardProps) {
   return (
-    <section className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border/75 p-8 text-center">
-      <div className="max-w-lg">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted/60">
-          <FolderSearch className="size-6 text-muted-foreground" />
-        </div>
-        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-          No tasks yet in {projectName}
+    <section className="flex flex-1 items-center justify-center">
+      <div className="max-w-lg text-center">
+        <FolderSearch className="mx-auto size-6 text-muted-foreground" />
+        <h3 className="mt-4 text-xl font-semibold tracking-tight text-foreground">
+          No dex tasks in {projectName}
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Add the first task to start tracking work in this project.
+          Create one here, or add it with dex in the repo. New tasks land in Todo.
+        </p>
+        <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Todo · In Progress · Blocked · Done
         </p>
         <Button className="mt-6 rounded-full px-5" onClick={onAddTask}>
           <Plus className="size-4" />
-          <span>Add First Task</span>
+          <span>Add task</span>
         </Button>
       </div>
     </section>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BoardSummaryRail,
   compareTasksByRecentActivity,
@@ -19,6 +19,7 @@ import {
 } from "@/components/project-board";
 import type { DexTask } from "@/lib/tasks-service";
 import type { ProjectItem } from "@/lib/projects-service";
+import { cn } from "@/lib/utils";
 
 type ProjectBoardViewProps = {
   project: ProjectItem;
@@ -26,10 +27,12 @@ type ProjectBoardViewProps = {
 };
 
 export function ProjectBoardView({ project, projectTasks }: ProjectBoardViewProps) {
+  const boardRef = useRef<HTMLElement | null>(null);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskFilter, setTaskFilter] = useState<TaskFilterKey>("all");
+  const [boardSize, setBoardSize] = useState({ width: 0, height: 0 });
   const [collapsedColumns, setCollapsedColumns] = useState<Record<KanbanColumnKey, boolean>>({
     todo: false,
     inProgress: false,
@@ -113,54 +116,95 @@ export function ProjectBoardView({ project, projectTasks }: ProjectBoardViewProp
     }));
   };
 
+  useEffect(() => {
+    const node = boardRef.current;
+
+    if (!node || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = Math.round(entry.contentRect.width);
+      const nextHeight = Math.round(entry.contentRect.height);
+
+      setBoardSize((current) => {
+        if (current.width === nextWidth && current.height === nextHeight) {
+          return current;
+        }
+
+        return { width: nextWidth, height: nextHeight };
+      });
+    });
+
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const isCompactBoard = boardSize.width > 0 && boardSize.width < 880;
+  const isShortBoard = boardSize.height > 0 && boardSize.height < 620;
+
   return (
     <>
-      <section className="h-full overflow-hidden p-4 sm:p-5">
-        <div className="h-full">
-          <div className="flex h-full flex-col gap-4">
-            <ProjectBoardHeader
+      <section
+        ref={boardRef}
+        className="relative h-full overflow-x-hidden overflow-y-auto p-3 sm:p-4"
+      >
+        <div className="flex min-h-full min-w-0 flex-col gap-3">
+          <ProjectBoardHeader
+            compact={isCompactBoard}
+            onAddTask={() => {
+              setIsCreateTaskOpen(true);
+            }}
+            projectName={project.name}
+            projectPath={project.path}
+          />
+
+          {projectTasks.length > 0 ? (
+            <>
+              <BoardSummaryRail
+                activeFilter={taskFilter}
+                blockedTasks={summary.blocked}
+                compact={isCompactBoard}
+                doneTasks={summary.done}
+                onFilterChange={setTaskFilter}
+                openTasks={summary.open}
+                totalTasks={summary.total}
+              />
+              <div
+                className={cn(
+                  "flex gap-3 overflow-x-auto overflow-y-hidden pb-2 pr-1",
+                  isCompactBoard && "snap-x snap-mandatory",
+                  isCompactBoard || isShortBoard
+                    ? "h-[18rem] min-h-[18rem]"
+                    : "min-h-[19rem] flex-1",
+                )}
+                id={`project-board-columns-${project.id}`}
+              >
+                {KANBAN_COLUMNS.map((column) => (
+                  <KanbanColumn
+                    compact={isCompactBoard}
+                    key={column.key}
+                    column={column}
+                    getSubtaskProgress={getSubtaskProgress}
+                    isCollapsed={collapsedColumns[column.key]}
+                    onOpenTask={openTaskDetails}
+                    onToggleCollapsed={() => toggleColumnCollapsed(column.key)}
+                    tasks={filteredGroupedTasks[column.key]}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <EmptyProjectBoard
               onAddTask={() => {
                 setIsCreateTaskOpen(true);
               }}
-              openTasks={summary.open}
               projectName={project.name}
-              projectPath={project.path}
-              totalTasks={summary.total}
             />
-
-            {projectTasks.length > 0 ? (
-              <>
-                <BoardSummaryRail
-                  activeFilter={taskFilter}
-                  blockedTasks={summary.blocked}
-                  doneTasks={summary.done}
-                  onFilterChange={setTaskFilter}
-                  openTasks={summary.open}
-                  totalTasks={summary.total}
-                />
-                <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden pb-2">
-                  {KANBAN_COLUMNS.map((column) => (
-                    <KanbanColumn
-                      key={column.key}
-                      column={column}
-                      getSubtaskProgress={getSubtaskProgress}
-                      isCollapsed={collapsedColumns[column.key]}
-                      onOpenTask={openTaskDetails}
-                      onToggleCollapsed={() => toggleColumnCollapsed(column.key)}
-                      tasks={filteredGroupedTasks[column.key]}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : (
-              <EmptyProjectBoard
-                onAddTask={() => {
-                  setIsCreateTaskOpen(true);
-                }}
-                projectName={project.name}
-              />
-            )}
-          </div>
+          )}
         </div>
       </section>
 
