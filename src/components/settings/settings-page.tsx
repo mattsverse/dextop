@@ -35,7 +35,13 @@ export function SettingsPage({
 }: SettingsPageProps) {
   return (
     <section className="relative h-full overflow-y-auto p-4 sm:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(110,130,104,0.08),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(138,113,77,0.06),transparent_26%)]" />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at top left, color-mix(in oklch, var(--foreground) 5%, transparent), transparent 34%), radial-gradient(circle at 80% 10%, color-mix(in oklch, var(--foreground) 3%, transparent), transparent 26%)",
+        }}
+      />
       <div className="relative mx-auto w-full max-w-6xl space-y-6 pb-4">
         <header>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
