@@ -1,3 +1,12 @@
+## [0.2.2] - 2026-03-24
+
+### 🐛 Bug Fixes
+
+- Simplify complex type + lint workflow
+
+### ⚙️ Miscellaneous Tasks
+
+- Update workflow to use blacksmith
 ## [0.2.1] - 2026-03-24
 
 ### 🐛 Bug Fixes
