@@ -356,7 +356,7 @@ export function CreateTaskDialog({
                           value={selectedBlockedItems}
                         >
                           <ComboboxChips
-                            className="min-h-11 rounded-xl border-border/70 bg-background/80"
+                            className="min-h-9 border-border bg-background"
                             ref={blockersAnchorRef}
                           >
                             <ComboboxChipsInput
@@ -415,7 +415,7 @@ export function CreateTaskDialog({
               >
                 Cancel
               </Button>
-              <Button className="rounded-full px-5" disabled={isSubmitting} type="submit">
+              <Button className="px-4" disabled={isSubmitting} type="submit">
                 <Plus className="size-4" />
                 <span>{isSubmitting ? "Adding..." : "Add Task"}</span>
               </Button>

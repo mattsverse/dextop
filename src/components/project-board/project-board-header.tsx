@@ -36,7 +36,7 @@ export function ProjectBoardHeader({
       </div>
 
       <Button
-        className={cn("min-h-11 rounded-full px-5", compact ? "w-full justify-center" : "sm:self-end")}
+        className={cn("min-h-9 px-4", compact ? "w-full justify-center" : "sm:self-end")}
         onClick={onAddTask}
       >
         <Plus className="size-4" />

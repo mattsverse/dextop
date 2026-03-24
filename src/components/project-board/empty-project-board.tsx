@@ -20,7 +20,7 @@ export function EmptyProjectBoard({ projectName, onAddTask }: EmptyProjectBoardP
         <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Todo · In Progress · Blocked · Done
         </p>
-        <Button className="mt-6 rounded-full px-5" onClick={onAddTask}>
+        <Button className="mt-6 px-4" onClick={onAddTask}>
           <Plus className="size-4" />
           <span>Add task</span>
         </Button>

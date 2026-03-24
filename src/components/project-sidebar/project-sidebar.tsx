@@ -44,7 +44,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
             {projects.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-sidebar-border/80 px-3 py-4 text-sm text-sidebar-foreground/60">
+              <div className="border border-dashed border-sidebar-border px-3 py-4 text-sm text-sidebar-foreground/60">
                 No projects yet. Add one to get started.
               </div>
             ) : null}
@@ -74,7 +74,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              className="h-11 justify-center rounded-full border border-transparent bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/92"
+              className="h-9 justify-center border border-transparent bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/92"
               onClick={() => {
                 void openProject();
               }}

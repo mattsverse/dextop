@@ -3,11 +3,11 @@ import { cva } from "class-variance-authority";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navLinkVariants = cva("rounded-full px-3 text-xs sm:text-sm", {
+const navLinkVariants = cva("border border-transparent px-3 text-xs sm:text-sm", {
   variants: {
     active: {
-      true: "bg-muted text-foreground",
-      false: "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+      true: "border-border bg-muted text-foreground",
+      false: "text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground",
     },
   },
 });

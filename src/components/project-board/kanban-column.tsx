@@ -38,8 +38,8 @@ export function KanbanColumn({
     <section
       className={cn(
         "group flex min-h-0 flex-col",
-        compact && "snap-start rounded-[0.95rem] border border-border/65 bg-background/24 px-3 py-3",
-        !compact && "border-r border-border/60 pr-3 last:border-r-0",
+        compact && "snap-start border border-border bg-background px-3 py-3",
+        !compact && "border-r border-border pr-3 last:border-r-0",
         isCollapsed
           ? compact
             ? "w-[104px] shrink-0"
@@ -66,7 +66,7 @@ export function KanbanColumn({
           aria-expanded={!isCollapsed}
           aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${column.label} column`}
           className={cn(
-            "size-11 rounded-full text-muted-foreground",
+            "size-9 text-muted-foreground",
             !compact && "opacity-40 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
           )}
           onClick={onToggleCollapsed}

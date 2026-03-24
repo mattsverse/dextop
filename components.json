@@ -1,6 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "new-york",
+  "style": "radix-lyra",
   "rsc": false,
   "tsx": true,
   "tailwind": {
@@ -21,7 +21,5 @@
   },
   "menuColor": "default",
   "menuAccent": "subtle",
-  "registries": {
-    "@zaidan": "https://zaidan.carere.dev/r/{style}/{name}.json"
-  }
+  "registries": {}
 }

@@ -51,7 +51,7 @@ export function ThemeMenu() {
     <DropdownMenu onOpenChange={setIsThemeMenuOpen} open={isThemeMenuOpen}>
       <DropdownMenuTrigger
         aria-label={themeButtonLabel}
-        className="inline-flex size-9 shrink-0 select-none items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="inline-flex size-9 shrink-0 select-none items-center justify-center border border-transparent text-muted-foreground outline-none transition-colors hover:border-border hover:bg-muted/40 hover:text-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/40"
       >
         <CurrentThemeIcon className="size-4" />
       </DropdownMenuTrigger>

@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 
 export const updateNoticeVariants = cva(
-  "fixed right-4 bottom-4 z-50 w-[min(92vw,24rem)] rounded-[1rem] border p-3 shadow-[0_14px_45px_rgba(15,23,42,0.24)] backdrop-blur",
+  "fixed right-4 bottom-4 z-50 w-[min(92vw,24rem)] border p-3",
   {
     variants: {
       variant: {
@@ -15,7 +15,7 @@ export const updateNoticeVariants = cva(
   },
 );
 
-export const updateInlineStatusVariants = cva("rounded-[0.875rem] border px-2.5 py-2 text-sm", {
+export const updateInlineStatusVariants = cva("border px-2.5 py-2 text-sm", {
   variants: {
     tone: {
       active:

@@ -11,12 +11,12 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ProjectItem } from "@/lib/projects-service";
 
 const projectRowVariants = cva(
-  "h-auto flex-col items-start gap-1 rounded-lg border px-3 py-2.5 text-sidebar-foreground transition-all hover:bg-background/60",
+  "h-auto flex-col items-start gap-1 border px-3 py-2.5 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
   {
     variants: {
       active: {
-        true: "border-sidebar-border bg-background/80",
-        false: "border-transparent",
+        true: "border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground",
+        false: "border-sidebar-border/0",
       },
     },
   },
@@ -72,9 +72,9 @@ export function ProjectListItem({
             </div>
           </SidebarMenuButton>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-52 rounded-xl border border-border/80 bg-popover/96 p-1.5 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+        <ContextMenuContent className="w-52 border border-border bg-popover p-1">
           <ContextMenuItem
-            className="rounded-lg text-foreground"
+            className="text-foreground"
             onSelect={() => {
               onOpenInSeparateWindow();
             }}
@@ -84,7 +84,7 @@ export function ProjectListItem({
           </ContextMenuItem>
           <ContextMenuSeparator className="my-1" />
           <ContextMenuItem
-            className="rounded-lg"
+            className=""
             onSelect={() => {
               onDelete();
             }}

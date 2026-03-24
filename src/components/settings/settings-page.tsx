@@ -35,13 +35,6 @@ export function SettingsPage({
 }: SettingsPageProps) {
   return (
     <section className="relative h-full overflow-y-auto p-4 sm:p-6">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at top left, color-mix(in oklch, var(--foreground) 5%, transparent), transparent 34%), radial-gradient(circle at 80% 10%, color-mix(in oklch, var(--foreground) 3%, transparent), transparent 26%)",
-        }}
-      />
       <div className="relative mx-auto w-full max-w-6xl space-y-6 pb-4">
         <header>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -56,9 +49,9 @@ export function SettingsPage({
         </header>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <section className="rounded-[1.5rem] border border-border/75 bg-panel/88 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]">
+          <section className="border border-border bg-panel p-5">
             <div className="flex items-start gap-3">
-              <div className="rounded-full border border-destructive/20 bg-destructive/10 p-2 text-destructive">
+              <div className="border border-destructive/30 bg-destructive/10 p-2 text-destructive">
                 <Trash2 className="size-4" />
               </div>
               <div>
@@ -77,7 +70,7 @@ export function SettingsPage({
               {projectsCount} saved {projectsCount === 1 ? "project" : "projects"}
             </p>
             <Button
-              className="mt-4 w-full rounded-full"
+              className="mt-4 w-full"
               disabled={isClearingProjects || projectsCount === 0}
               onClick={onClearAllProjects}
               variant="destructive"
@@ -86,7 +79,7 @@ export function SettingsPage({
             </Button>
           </section>
 
-          <section className="rounded-[1.5rem] border border-border/75 bg-panel/88 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]">
+          <section className="border border-border bg-panel p-5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Theme
             </p>
@@ -110,7 +103,7 @@ export function SettingsPage({
           </section>
         </div>
 
-        <section className="rounded-[1.5rem] border border-border/75 bg-panel/88 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]">
+        <section className="border border-border bg-panel p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Application
           </p>
@@ -124,7 +117,7 @@ export function SettingsPage({
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
-              className="w-full rounded-full sm:w-auto"
+              className="w-full sm:w-auto"
               disabled={isCheckingForUpdates || isInstalling}
               onClick={onRequestManualUpdateCheck}
               variant="outline"
@@ -133,7 +126,7 @@ export function SettingsPage({
               {isManualCheckInProgress ? "Checking..." : "Check for updates"}
             </Button>
             <Button
-              className="w-full rounded-full sm:w-auto"
+              className="w-full sm:w-auto"
               onClick={onOpenRepository}
               variant="outline"
             >

@@ -24,7 +24,7 @@ export function TopNavbar() {
   const location = useLocation();
 
   return (
-    <header className="relative z-40 shrink-0 border-b border-border/75 bg-background px-4">
+    <header className="relative z-40 shrink-0 border-b border-border bg-background px-4">
       <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <FolderKanban className="size-4 shrink-0 text-primary" />

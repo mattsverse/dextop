@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import type { StatusTone } from "./model";
 
 export const boardPanelSurfaceClass =
-  "rounded-[1.5rem] border border-border/75 bg-panel/88 shadow-[0_22px_55px_rgba(15,23,42,0.08)] dark:shadow-[0_22px_55px_rgba(2,6,23,0.28)]";
+  "border border-border bg-panel text-foreground";
 
 export const boardDialogSurfaceClass =
-  "rounded-[1.5rem] border border-border/75 bg-panel/96 shadow-[0_28px_84px_rgba(15,23,42,0.18)] dark:shadow-[0_28px_84px_rgba(2,6,23,0.46)]";
+  "border border-border bg-panel text-foreground";
 
 export const boardSurfaceVariants = cva(
   "relative overflow-hidden",
@@ -15,12 +15,12 @@ export const boardSurfaceVariants = cva(
     variants: {
       tone: {
         default: boardPanelSurfaceClass,
-        subtle: "rounded-[1rem] border border-border/70 bg-background/58 shadow-none dark:bg-background/24",
-        dashed: "rounded-[1rem] border border-border/65 border-dashed bg-background/34 shadow-none",
+        subtle: "border border-border bg-background shadow-none",
+        dashed: "border border-dashed border-border bg-background shadow-none",
       },
       interactive: {
         true:
-          "transition-[border-color,background-color] hover:border-primary/18 hover:bg-background/76",
+          "transition-[border-color,background-color] hover:border-foreground/20 hover:bg-muted/40",
         false: "",
       },
     },
@@ -32,7 +32,7 @@ export const boardSurfaceVariants = cva(
 );
 
 export const statusBadgeVariants = cva(
-  "rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
+  "inline-flex items-center border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
   {
     variants: {
       tone: {
@@ -52,7 +52,7 @@ export const statusBadgeVariants = cva(
 );
 
 export const metaPillVariants = cva(
-  "inline-flex items-center gap-1 rounded-full border border-border/65 bg-background/72 px-2.5 py-1 text-xs font-medium text-muted-foreground",
+  "inline-flex items-center gap-1 border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground",
   {
     variants: {
       tone: {
@@ -77,7 +77,7 @@ export const metaPillVariants = cva(
 );
 
 export const interactivePillVariants = cva(
-  "inline-flex items-center rounded-full border border-border/70 bg-background/78 px-3 py-1.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/25 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+  "inline-flex items-center border border-border bg-background px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60",
 );
 
 const statValueVariants = cva("text-sm font-semibold tracking-tight", {
@@ -116,7 +116,7 @@ export function StatTile({
       className={cn(
         "space-y-1",
         framed &&
-          "min-w-[5.75rem] rounded-[1rem] border border-border/70 bg-background/72 px-4 py-3",
+          "min-w-[5.75rem] border border-border bg-background px-3 py-3",
         className,
       )}
     >
@@ -151,7 +151,7 @@ export function SectionCard({
     <section
       className={cn(
         "space-y-3",
-        surface && "rounded-[1.25rem] border border-border/70 bg-background/72 p-4 sm:p-5",
+        surface && "border border-border bg-background p-4",
         containerClassName,
       )}
     >

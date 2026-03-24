@@ -35,8 +35,8 @@ export function UpdateDialog({
 }: UpdateDialogProps) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-md rounded-[1rem] border border-border/80 bg-panel p-0 text-foreground shadow-[0_28px_90px_rgba(15,23,42,0.22)] dark:shadow-[0_28px_90px_rgba(2,6,23,0.44)]">
-        <DialogHeader className="gap-2 border-b border-border/75 bg-background/78 px-5 py-4">
+      <DialogContent className="max-w-md border border-border bg-panel p-0 text-foreground">
+        <DialogHeader className="gap-2 border-b border-border bg-background px-5 py-4">
           <DialogTitle className="text-base font-semibold tracking-tight text-foreground">
             {isReadyToRestart ? "Update installed" : "Update available"}
           </DialogTitle>
@@ -68,7 +68,7 @@ export function UpdateDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border/75 px-5 py-4">
+        <DialogFooter className="gap-2 border-t border-border px-5 py-4">
           <Button
             disabled={isInstalling}
             onClick={() => onOpenChange(false)}

@@ -3,22 +3,22 @@ import { Check, Laptop, Moon, Sun } from "lucide-react";
 import type { ThemePreference } from "@/contexts/theme-context";
 
 const themeOptionVariants = cva(
-  "flex w-full items-center justify-between rounded-[1rem] border px-3 py-3 text-left transition-colors",
+  "flex w-full items-center justify-between border px-3 py-3 text-left transition-colors",
   {
     variants: {
       active: {
-        true: "border-primary/35 bg-background/90",
-        false: "border-border/75 bg-background/72 hover:border-primary/25 hover:bg-background/92",
+        true: "border-foreground/20 bg-muted/40",
+        false: "border-border bg-background hover:border-foreground/20 hover:bg-muted/40",
       },
     },
   },
 );
 
-const themeCheckVariants = cva("rounded-full border p-1", {
+const themeCheckVariants = cva("border p-1", {
   variants: {
     active: {
-      true: "border-primary/35 bg-primary text-primary-foreground",
-      false: "border-border/75 text-muted-foreground",
+      true: "border-primary bg-primary text-primary-foreground",
+      false: "border-border text-muted-foreground",
     },
   },
 });
@@ -74,7 +74,7 @@ export function ThemeOptionCard({
       type="button"
     >
       <span className="flex items-center gap-3">
-        <span className="rounded-full border border-border/75 bg-panel p-2 text-muted-foreground">
+        <span className="border border-border bg-panel p-2 text-muted-foreground">
           <Icon className="size-4" />
         </span>
         <span>

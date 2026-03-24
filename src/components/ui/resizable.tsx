@@ -1,50 +1,48 @@
-import * as React from "react";
-import {
-  Group,
-  Panel,
-  Separator,
-  type GroupProps,
-} from "react-resizable-panels";
-import { cn } from "@/lib/utils";
+import * as ResizablePrimitive from "react-resizable-panels"
 
-export function ResizablePanelGroup({ className, orientation, ...props }: GroupProps) {
+import { cn } from "@/lib/utils"
+
+function ResizablePanelGroup({
+  className,
+  ...props
+}: ResizablePrimitive.GroupProps) {
   return (
-    <Group
+    <ResizablePrimitive.Group
+      data-slot="resizable-panel-group"
       className={cn(
-        "flex h-full w-full",
-        orientation === "vertical" && "flex-col",
-        className,
+        "flex h-full w-full aria-[orientation=vertical]:flex-col",
+        className
       )}
-      orientation={orientation}
       {...props}
     />
-  );
+  )
 }
 
-export { Panel as ResizablePanel };
+function ResizablePanel({ ...props }: ResizablePrimitive.PanelProps) {
+  return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />
+}
 
-type ResizableHandleProps = React.ComponentProps<typeof Separator> & {
-  withHandle?: boolean;
-};
-
-export function ResizableHandle({
+function ResizableHandle({
+  withHandle,
   className,
-  withHandle = false,
   ...props
-}: ResizableHandleProps) {
+}: ResizablePrimitive.SeparatorProps & {
+  withHandle?: boolean
+}) {
   return (
-    <Separator
+    <ResizablePrimitive.Separator
+      data-slot="resizable-handle"
       className={cn(
-        "group relative flex shrink-0 items-center justify-center bg-border/70 transition-colors hover:bg-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[orientation=vertical]:w-px aria-[orientation=vertical]:px-1 aria-[orientation=horizontal]:h-px aria-[orientation=horizontal]:py-1",
-        className,
+        "relative flex w-px items-center justify-center bg-border ring-offset-background after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden aria-[orientation=horizontal]:h-px aria-[orientation=horizontal]:w-full aria-[orientation=horizontal]:after:left-0 aria-[orientation=horizontal]:after:h-1 aria-[orientation=horizontal]:after:w-full aria-[orientation=horizontal]:after:translate-x-0 aria-[orientation=horizontal]:after:-translate-y-1/2 [&[aria-orientation=horizontal]>div]:rotate-90",
+        className
       )}
       {...props}
     >
-      {withHandle ? (
-        <div className="flex items-center justify-center rounded-full border border-border/80 bg-background px-1 py-0.5 shadow-sm transition-colors group-hover:bg-panel aria-[orientation=horizontal]:rotate-90">
-          <div className="z-resizable-handle-icon" />
-        </div>
-      ) : null}
-    </Separator>
-  );
+      {withHandle && (
+        <div className="z-10 flex h-6 w-1 shrink-0 rounded-none bg-border" />
+      )}
+    </ResizablePrimitive.Separator>
+  )
 }
+
+export { ResizableHandle, ResizablePanel, ResizablePanelGroup }

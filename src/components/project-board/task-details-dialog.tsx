@@ -209,7 +209,7 @@ export function TaskDetailsDialog({
                 ].map(([label, value]) => (
                   <div
                     key={label}
-                    className="rounded-[1rem] border border-border/75 bg-background/80 px-4 py-3"
+                    className="border border-border bg-background px-4 py-3"
                   >
                     <dt className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {label}

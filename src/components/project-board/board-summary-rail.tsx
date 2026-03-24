@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { TaskFilterKey } from "./model";
 
-const filterButtonVariants = cva("rounded-full border px-3 text-sm font-medium transition-colors", {
+const filterButtonVariants = cva("border px-3 text-sm font-medium transition-colors", {
   variants: {
     active: {
-      true: "border-border/80 bg-panel text-foreground",
+      true: "border-border bg-panel text-foreground",
       false:
-        "border-border/60 bg-background/48 text-muted-foreground hover:bg-background/64 hover:text-foreground",
+        "border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground",
     },
   },
 });
@@ -60,7 +60,7 @@ export function BoardSummaryRail({
             key={filter.key}
             className={cn(
               filterButtonVariants({ active: filter.key === activeFilter }),
-              "h-11 px-4 text-sm",
+              "h-9 px-4 text-sm",
             )}
             variant="ghost"
             onClick={() => onFilterChange(filter.key)}

@@ -202,7 +202,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
         <div className="flex items-center gap-1">
           <Button
             aria-label="Split pane side by side"
-            className="size-11 rounded-full"
+            className="size-9"
             onClick={() => {
               splitPane(node.id, "horizontal");
             }}
@@ -214,7 +214,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
           </Button>
           <Button
             aria-label="Split pane stacked"
-            className="size-11 rounded-full"
+            className="size-9"
             onClick={() => {
               splitPane(node.id, "vertical");
             }}
@@ -226,7 +226,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
           </Button>
           <Button
             aria-label="Close pane"
-            className="size-11 rounded-full"
+            className="size-9"
             disabled={paneCount <= 1}
             onClick={() => {
               closePane(node.id);
@@ -384,9 +384,9 @@ function ProjectsWorkspaceShell() {
         }}
         selectedProjectId={focusedProjectId}
       />
-      <SidebarInset className="min-w-0 flex-1 overflow-y-auto border border-border/70 bg-background/74 backdrop-blur">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border/75 bg-background/82 px-4 backdrop-blur-xl">
-          <SidebarTrigger className="rounded-full border border-border/75 bg-panel text-muted-foreground hover:bg-background hover:text-foreground" />
+      <SidebarInset className="min-w-0 flex-1 overflow-y-auto border border-border bg-background">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-4">
+          <SidebarTrigger className="border border-border bg-panel text-muted-foreground hover:bg-muted/40 hover:text-foreground" />
           <p className="truncate text-sm font-semibold text-foreground">Workspace</p>
           <div className="ml-auto hidden text-right md:block">
             <p className="text-[11px] font-medium text-foreground">

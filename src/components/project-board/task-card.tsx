@@ -18,7 +18,7 @@ export function TaskCard({ task, onOpen, subtaskProgress }: TaskCardProps) {
   return (
     <button
       className={cn(
-        "block w-full rounded-[0.95rem] border border-transparent bg-background/28 p-4 text-left transition-[border-color,background-color] hover:border-border/60 hover:bg-background/56 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        "block w-full border border-border bg-background px-4 py-3 text-left transition-[border-color,background-color] hover:border-foreground/20 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60",
       )}
       onClick={onOpen}
       type="button"
