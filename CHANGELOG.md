@@ -1,3 +1,12 @@
+## [0.2.1] - 2026-03-24
+
+### 🐛 Bug Fixes
+
+- Normalizing design
+- Colors
+- Pane numbering
+- Styling
+- Pane gap
 ## [0.2.0] - 2026-03-22
 
 ### 🚀 Features
