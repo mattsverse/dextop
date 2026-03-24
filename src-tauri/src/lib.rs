@@ -365,18 +365,17 @@ fn normalize_blocked_by(task_ids: Vec<String>) -> Vec<String> {
     normalized
 }
 
+type ValidatedCreateTaskInput = (
+    String,
+    Option<String>,
+    Option<i64>,
+    Option<String>,
+    Vec<String>,
+);
+
 fn validate_create_task_input(
     input: CreateProjectTaskInput,
-) -> Result<
-    (
-        String,
-        Option<String>,
-        Option<i64>,
-        Option<String>,
-        Vec<String>,
-    ),
-    String,
-> {
+) -> Result<ValidatedCreateTaskInput, String> {
     let trimmed_name = input.name.trim().to_string();
     if trimmed_name.is_empty() {
         return Err("task name cannot be empty".to_string());
