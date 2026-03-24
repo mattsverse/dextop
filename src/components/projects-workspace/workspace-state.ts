@@ -70,6 +70,11 @@ export function listWorkspacePanes(node: WorkspaceNode): WorkspacePaneNode[] {
   return [...listWorkspacePanes(node.children[0]), ...listWorkspacePanes(node.children[1])];
 }
 
+export function getWorkspacePaneNumber(node: WorkspaceNode, paneId: string): number | null {
+  const paneIndex = listWorkspacePanes(node).findIndex((pane) => pane.id === paneId);
+  return paneIndex === -1 ? null : paneIndex + 1;
+}
+
 export function getWorkspacePaneById(
   node: WorkspaceNode,
   paneId: string,

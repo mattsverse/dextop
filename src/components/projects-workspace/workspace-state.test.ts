@@ -4,6 +4,7 @@ import {
   closeWorkspacePane,
   createWorkspaceState,
   focusNextWorkspacePane,
+  getWorkspacePaneNumber,
   focusWorkspacePane,
   listWorkspacePanes,
   moveWorkspaceFocus,
@@ -175,5 +176,36 @@ describe("workspace-state", () => {
     }
 
     expect(normalizedState.root.projectId).toBe("beta");
+  });
+
+  test("derives pane numbers from the current leaf order instead of persisted ids", () => {
+    const normalizedState = normalizeWorkspaceState(
+      {
+        root: {
+          kind: "split",
+          id: "split-9",
+          axis: "horizontal",
+          sizes: [70, 30],
+          children: [
+            {
+              kind: "pane",
+              id: "pane-8",
+              projectId: "alpha",
+            },
+            {
+              kind: "pane",
+              id: "pane-20",
+              projectId: "beta",
+            },
+          ],
+        },
+        focusedPaneId: "pane-20",
+        nextPaneNumber: 21,
+      },
+      new Set(["alpha", "beta"]),
+    );
+
+    expect(getWorkspacePaneNumber(normalizedState.root, "pane-8")).toBe(1);
+    expect(getWorkspacePaneNumber(normalizedState.root, "pane-20")).toBe(2);
   });
 });

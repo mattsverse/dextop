@@ -19,7 +19,7 @@ import {
   WORKSPACE_COMMAND_EVENT,
   type WorkspaceCommand,
 } from "./workspace-commands";
-import { type WorkspaceNode } from "./workspace-state";
+import { getWorkspacePaneNumber, type WorkspaceNode } from "./workspace-state";
 
 type ProjectsWorkspaceProps = {
   initialProjectId: string | null;
@@ -125,11 +125,16 @@ function WorkspacePanePlaceholder() {
 function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
   const { projects } = useProjects();
   const { getProjectTasks } = useTasks();
-  const { closePane, focusPane, focusedPaneId, splitPane, updateSplitLayout } = useWorkspace();
+  const { closePane, focusPane, focusedPaneId, splitPane, updateSplitLayout, workspaceState } =
+    useWorkspace();
 
   const projectsById = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
+  );
+  const paneNumber = useMemo(
+    () => getWorkspacePaneNumber(workspaceState.root, node.id),
+    [node.id, workspaceState.root],
   );
 
   if (node.kind === "split") {
@@ -187,7 +192,7 @@ function WorkspaceNodeView({ node, paneCount }: WorkspaceNodeViewProps) {
       <header className="flex items-center justify-between gap-3 border-b border-border/75 bg-background/52 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">
-            {project ? `Pane ${node.id.replace("pane-", "")}` : "Empty pane"}
+            {project ? `Pane ${paneNumber ?? 1}` : "Empty pane"}
           </p>
           <p className="truncate text-[11px] text-muted-foreground">
             {project ? "Project board" : "Select a repo from the sidebar"}
