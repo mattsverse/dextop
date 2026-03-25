@@ -384,7 +384,7 @@ function ProjectsWorkspaceShell() {
         }}
         selectedProjectId={focusedProjectId}
       />
-      <SidebarInset className="min-w-0 flex-1 overflow-y-auto border border-border bg-background">
+      <SidebarInset className="min-h-0 min-w-0 flex-1 overflow-hidden border border-border bg-background">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-4">
           <SidebarTrigger className="border border-border bg-panel text-muted-foreground hover:bg-muted/40 hover:text-foreground" />
           <p className="truncate text-sm font-semibold text-foreground">Workspace</p>
@@ -398,8 +398,8 @@ function ProjectsWorkspaceShell() {
           </div>
         </header>
 
-        <section className="h-[calc(100%-56px)] overflow-hidden p-4 sm:p-5">
-          <div className="h-full">
+        <section className="min-h-0 flex-1 overflow-hidden p-4 sm:p-5">
+          <div className="h-full min-h-0">
             <WorkspaceNodeView node={workspaceState.root} paneCount={panes.length} />
           </div>
         </section>
