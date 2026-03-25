@@ -1,3 +1,8 @@
+## [0.2.3] - 2026-03-25
+
+### 🐛 Bug Fixes
+
+- Panel scroll behaviour
 ## [0.2.2] - 2026-03-24
 
 ### 🐛 Bug Fixes
